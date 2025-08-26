@@ -682,8 +682,16 @@ app.post("/api/config", (req, res) => {
   }
   if (typeof b.plexUrl === "string") CONFIG.plexUrl = b.plexUrl;
   if (typeof b.plexToken === "string") CONFIG.plexToken = b.plexToken;
-  if (typeof b.tautulliUrl === "string") CONFIG.tautulliUrl = b.tautulliUrl;
-  if (typeof b.tautulliApiKey === "string") CONFIG.tautulliApiKey = b.tautulliApiKey;
+  if (typeof b.tautulliUrl === "string") {
+    CONFIG.tautulliUrl = b.tautulliUrl;
+    CONFIG.tautulli = CONFIG.tautulli || {};
+    CONFIG.tautulli.baseUrl = b.tautulliUrl;
+  }
+  if (typeof b.tautulliApiKey === "string") {
+    CONFIG.tautulliApiKey = b.tautulliApiKey;
+    CONFIG.tautulli = CONFIG.tautulli || {};
+    CONFIG.tautulli.apiKey = b.tautulliApiKey;
+  }
   if (typeof b.lookbackDays === "number") CONFIG.lookbackDays = b.lookbackDays;
   // --- imageHost & cloudinary ---
   if (typeof b.imageHost === "string") CONFIG.imageHost = b.imageHost; // "embedded" | "cloudinary"
@@ -2166,6 +2174,68 @@ app.get("/api/newsletters/:id/preview", async (req, res) => {
 });
 
 /* --------------------------------- start ---------------------------------- */
+
+// ---- First-run bootstrap: scaffold config & state files if missing ----
+try {
+  const SAMPLE_CONFIG_PATH = path.resolve(process.cwd(), "server/config.sample.json");
+
+  // helper to ensure a file exists with default JSON content
+  const ensureJson = (p, def) => {
+    try {
+      if (!fs.existsSync(p)) {
+        fs.mkdirSync(path.dirname(p), { recursive: true });
+        fs.writeFileSync(p, JSON.stringify(def, null, 2), "utf8");
+        console.log("[bootstrap] created", p);
+      }
+    } catch (e) {
+      console.warn("[bootstrap] failed to create", p, e?.message || e);
+    }
+  };
+
+  // 1) config.json: prefer copying sample if available; otherwise write a sane default
+  if (!fs.existsSync(CONFIG_PATH)) {
+    try {
+      if (fs.existsSync(SAMPLE_CONFIG_PATH)) {
+        const txt = fs.readFileSync(SAMPLE_CONFIG_PATH, "utf8");
+        fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+        fs.writeFileSync(CONFIG_PATH, txt, "utf8");
+        console.log("[bootstrap] copied sample ->", CONFIG_PATH);
+      } else {
+        const defaultCfg = {
+          smtpHost: "",
+          smtpPort: 587,
+          smtpSecure: false,
+          smtpUser: "",
+          smtpPass: "",
+          fromAddress: "",
+          plexUrl: "",
+          plexToken: "",
+          tautulliUrl: "",
+          tautulliApiKey: "",
+          lookbackDays: 7,
+          ownerRecommendation: {},
+          lastTest: { plex: "unknown", tautulli: "unknown", smtp: "unknown", cloudinary: "unknown" },
+          imageHost: "embedded",
+          cloudinary: { cloudName: "", apiKey: "", apiSecret: "", folder: "newzlettr" },
+          // also prime nested shapes used by routers
+          tautulli: { baseUrl: "", apiKey: "" },
+          plex: { url: "", token: "" }
+        };
+        ensureJson(CONFIG_PATH, defaultCfg);
+      }
+    } catch (e) {
+      console.warn("[bootstrap] config setup failed:", e?.message || e);
+    }
+  }
+
+  // 2) persistent JSON files used by the app
+  ensureJson(RECIPIENTS_PATH, []);
+  ensureJson(TEMPLATES_PATH, []);
+  ensureJson(NEWSLETTERS_PATH, []);
+} catch (e) {
+  console.warn("[bootstrap] unexpected error:", e?.message || e);
+}
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`API listening on port ${PORT}`);

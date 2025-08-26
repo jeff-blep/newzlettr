@@ -17,14 +17,23 @@ function buildDispatcher(sniHost) {
 
 async function readTautulliConfig() {
   const cfg = await getConfig();
-  const t = cfg?.tautulli || {};
+
+  // Prefer nested block but support flat keys and ENV variables
+  const nested = cfg?.tautulli || {};
   const envUrl = process.env.TAUTULLI_URL || process.env.TAUTULLI_BASE_URL;
   const envKey = process.env.TAUTULLI_API_KEY || process.env.TAUTULLI_APIKEY || process.env.TAUTULLI_TOKEN;
-  const url = (envUrl || t.url || "").replace(/\/+$/, "");
-  const apiKey = envKey || t.apiKey || t.apikey || t.token || "";
-  const hostHeader = t.hostHeader || process.env.TAUTULLI_HOST_HEADER || null;
-  const sniHost = t.sniHost || process.env.TAUTULLI_SNI_HOST || null;
-  return { url, apiKey, hostHeader, sniHost, raw: t };
+
+  // Flat key variants some setups provide
+  const flatUrl = cfg?.tautulliUrl || cfg?.tautulliBaseUrl;
+  const flatKey = cfg?.tautulliApiKey || cfg?.tautulliKey;
+
+  const url = String(envUrl || nested.url || nested.baseUrl || flatUrl || "").replace(/\/+$/, "");
+  const apiKey = String(envKey || nested.apiKey || nested.apikey || nested.token || flatKey || "");
+
+  const hostHeader = nested.hostHeader || process.env.TAUTULLI_HOST_HEADER || null;
+  const sniHost = nested.sniHost || process.env.TAUTULLI_SNI_HOST || null;
+
+  return { url, apiKey, hostHeader, sniHost, raw: nested };
 }
 
 async function tautulliFetch(cmd, params = {}, tcfg) {

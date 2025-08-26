@@ -16,6 +16,18 @@ function readConfig() {
 function trimRightSlash(u = "") { return String(u || "").replace(/\/+$/, ""); }
 function okStr(s) { return typeof s === "string" && s.trim().length > 0; }
 
+function getPlexConfig() {
+  const cfg = readConfig();
+  const nested = cfg?.plex || {};
+  const envUrl = process.env.PLEX_URL || process.env.PLEX_BASE_URL;
+  const envToken = process.env.PLEX_TOKEN || process.env.PLEX_AUTH_TOKEN;
+  const flatUrl = cfg?.plexUrl || cfg?.plexBaseUrl;
+  const flatToken = cfg?.plexToken || cfg?.plexAuthToken;
+  const base = trimRightSlash(envUrl || nested.url || nested.baseUrl || flatUrl || "");
+  const token = String(envToken || nested.token || nested.authToken || flatToken || "");
+  return { base, token };
+}
+
 /* fetch helpers */
 async function fetchWithTimeout(url, opts = {}, ms = 8000) {
   const ac = new AbortController();
@@ -35,7 +47,7 @@ const router = express.Router();
 /* ------- SEARCH ------- */
 /** GET /api/plex/search?q=… */
 router.get("/search", async (req, res) => {
-  const cfg = readConfig(); const base = trimRightSlash(cfg.plexUrl || ""); const token = cfg.plexToken || "";
+  const { base, token } = getPlexConfig();
   const q = String(req.query.q || "").trim();
   if (!okStr(base) || !okStr(token) || q.length < 2) return res.json({ results: [] });
 
@@ -81,7 +93,7 @@ router.get("/search", async (req, res) => {
 /* ------- ITEM ------- */
 /** GET /api/plex/item/:id */
 router.get("/item/:id", async (req, res) => {
-  const cfg = readConfig(); const base = trimRightSlash(cfg.plexUrl || ""); const token = cfg.plexToken || "";
+  const { base, token } = getPlexConfig();
   const id = String(req.params.id || "").trim();
   if (!okStr(base) || !okStr(token) || !okStr(id)) return res.json({ item: null });
   try {
@@ -100,7 +112,7 @@ router.get("/item/:id", async (req, res) => {
 /** GET /api/plex/image?path=/library/...  OR  ?u=http(s)://... */
 router.get("/image", async (req, res) => {
   try {
-    const cfg = readConfig(); const base = trimRightSlash(cfg.plexUrl || ""); const token = cfg.plexToken || "";
+    const { base, token } = getPlexConfig();
     if (!okStr(base) || !okStr(token)) return res.status(400).send("Missing Plex config");
     const rel = req.query?.path; const u = req.query?.u;
     let url;
@@ -122,7 +134,7 @@ router.get("/image", async (req, res) => {
 /* ------- IDENTITY ------- */
 /** GET /api/plex/identity -> { machineIdentifier, friendlyName } */
 router.get("/identity", async (_req, res) => {
-  const cfg = readConfig(); const base = trimRightSlash(cfg.plexUrl || ""); const token = cfg.plexToken || "";
+  const { base, token } = getPlexConfig();
   if (!okStr(base) || !okStr(token)) return res.status(400).json({ error: "Missing Plex config" });
   try {
     const r = await fetchWithTimeout(plexUrl(base, token, "/identity"), {}, 6000);
@@ -140,7 +152,7 @@ router.get("/identity", async (_req, res) => {
 
 /** GET /api/plex/server-id -> { machineIdentifier } */
 router.get("/server-id", async (_req, res) => {
-  const cfg = readConfig(); const base = trimRightSlash(cfg.plexUrl || ""); const token = cfg.plexToken || "";
+  const { base, token } = getPlexConfig();
   if (!okStr(base) || !okStr(token)) return res.status(400).json({ error: "Missing Plex config" });
   try {
     const r = await fetchWithTimeout(plexUrl(base, token, "/identity"), {}, 6000);
