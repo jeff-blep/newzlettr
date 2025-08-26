@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* optional: DaisyUI theme tweak example */
+/* :root { --rounded-btn: 0.5rem; } */

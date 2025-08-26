@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ignore stray configs
+/server/config.json
+.env
+.env.local
+.env.*.local
+
+# 🔒 Local runtime/state files — do not commit
+server/config.json
+server/recipients.json
+server/newsletters.json
+server/emailtemplates.json
+server/cloudinary_urls.json
+
+# Logs & debug output
+*.log
+*.err
+*.out
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node modules & caches
+node_modules/
+.pnpm/
+.vite/
+.cache/
