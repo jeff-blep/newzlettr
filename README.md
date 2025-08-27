@@ -114,6 +114,6 @@ Make sure you have the following before installing:
 Clone the repository and install dependencies:  
 
 ```bash
-git clone https://github.com/YOURUSERNAME/newzlettr.git
+git clone https://github.com/jeff-blep/newzlettr.git
 cd newzlettr
 npm install
