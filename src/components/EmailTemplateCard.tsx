@@ -60,6 +60,24 @@ function posterFrom(row: any): string | null {
 function posterImg(src: string, alt = "", w = 36, h = 54) {
   return `<img src="${src}" alt="${htmlEscape(alt)}" style="width:${w}px;height:${h}px;object-fit:cover;border-radius:6px;margin-right:10px;border:1px solid #e5e7eb" />`;
 }
+
+function stackedList(items) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${items.map((x) => `
+        <tr>
+          <td valign="top" width="96" style="padding:0 16px 16px 0;">
+            ${x.poster ? posterImg(x.poster, x.title || "", 96, 144) : ""}
+          </td>
+          <td valign="top" style="padding:0 0 16px 0;">
+            <div style="font-weight:600;line-height:1.25;margin:0 0 4px 0;">
+              ${htmlEscape(x.title || "")}${x.year ? ` (${x.year})` : ""}
+            </div>
+            ${x.summary ? `<div style="font-size:13px;line-height:1.4;opacity:.9;margin:0;">${htmlEscape(x.summary)}</div>` : ""}
+          </td>
+        </tr>`).join("")}
+    </table>`;
+}
 function rowType(row: any): string {
   return String(row?.media_type || row?.type || row?.section_type || "").toLowerCase();
 }
@@ -731,15 +749,14 @@ export default function EmailTemplateCard({ config, save }: Props) {
           title: r?.title || "Untitled",
           year: r?.year,
           poster: posterFrom(r),
+          summary: r?.summary || r?.plot || r?.tagline || "",
         }))
-        .slice(0, 8);
-      const grid =
+        .slice(0, 6);
+      const body =
         items.length > 0
-          ? `<div style="display:flex;flex-wrap:wrap;gap:10px">${items
-              .map((x) => (x.poster ? posterImg(x.poster, x.title, 96, 144) : ""))
-              .join("")}</div>`
-        : `<div style="opacity:.75">${homeLoading ? "Loading…" : "Preview • Will populate dynamically on send (Last " + historyDaysForPreview + " Days)."}</div>`;
-        html = html.replaceAll("{{CARD_RECENT_MOVIES}}", cardHtml("Recently added Movies", grid));
+          ? stackedList(items)
+          : `<div style="opacity:.75">${homeLoading ? "Loading…" : `Preview • Will populate dynamically on send (Last ${historyDaysForPreview} Days).`}</div>`;
+      html = html.replaceAll("{{CARD_RECENT_MOVIES}}", cardHtml("Recently added Movies", body));
     }
 
     // Recently Added Episodes
@@ -748,17 +765,16 @@ export default function EmailTemplateCard({ config, save }: Props) {
       const items = rows
         .filter((r: any) => ["episode", "season", "show"].includes(rowType(r)))
         .map((r: any) => ({
-          title: r?.grandparent_title || r?.title || "Episode",
+          title: r?.grandparent_title ? `${r.grandparent_title}${r.title ? " — " + r.title : ""}` : r?.title || "Episode",
           poster: posterFrom(r),
+          summary: r?.summary || r?.plot || "",
         }))
-        .slice(0, 8);
-      const grid =
+        .slice(0, 6);
+      const body =
         items.length > 0
-          ? `<div style="display:flex;flex-wrap:wrap;gap:10px">${items
-              .map((x) => (x.poster ? posterImg(x.poster, x.title, 96, 144) : ""))
-              .join("")}</div>`
-        : `<div style="opacity:.75">${homeLoading ? "Loading…" : "Preview • Will populate dynamically on send (Last " + historyDaysForPreview + " Days)."}</div>`;
-        html = html.replaceAll("{{CARD_RECENT_EPISODES}}", cardHtml("Recently added TV Episodes", grid));
+          ? stackedList(items)
+          : `<div style="opacity:.75">${homeLoading ? "Loading…" : `Preview • Will populate dynamically on send (Last ${historyDaysForPreview} Days).`}</div>`;
+      html = html.replaceAll("{{CARD_RECENT_EPISODES}}", cardHtml("Recently added TV Episodes", body));
     }
 
     return html;

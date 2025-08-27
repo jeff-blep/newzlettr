@@ -1180,6 +1180,47 @@ function posterFrom(row) {
 function posterImg(src, alt = "", w = 36, h = 54) {
   return `<img src="${src}" alt="${htmlEscape(alt)}" style="width:${w}px;height:${h}px;object-fit:cover;border-radius:6px;margin-right:10px;border:1px solid #e5e7eb" />`;
 }
+
+function stackedList(items) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${items.map((x) => `
+        <tr>
+          <td valign="top" width="110" style="padding:0 16px 16px 0;">
+            ${x.poster ? posterImg(x.poster, x.title || "", 96, 144) : ""}
+          </td>
+          <td valign="top" style="padding:0 0 16px 0;font-size:13px;line-height:1.45">
+            ${x.href
+              ? `<a href="${x.href}" target="_blank" rel="noreferrer" style="text-decoration:none;color:#93c5fd;font-size:14px;font-weight:600;display:block;margin-bottom:6px">${htmlEscape(x.title || "")}${x.year ? ` (${x.year})` : ""}</a>`
+              : `<div style="font-size:14px;font-weight:600;margin-bottom:6px">${htmlEscape(x.title || "")}${x.year ? ` (${x.year})` : ""}</div>`}
+            ${x.summary ? `<div>${htmlEscape(x.summary)}</div>` : ""}
+          </td>
+        </tr>`).join("")}
+    </table>`;
+}
+
+function stackedSeries(seriesList) {
+  const makeTwoDigits = (n) => (n == null ? "??" : String(n).padStart(2, "0"));
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${seriesList.map((s) => `
+        <tr>
+          <td valign="top" width="110" style="padding:0 16px 16px 0;">
+            ${s.poster ? posterImg(s.poster, s.title || "", 96, 144) : ""}
+          </td>
+          <td valign="top" style="padding:0 0 16px 0;font-size:13px;line-height:1.45">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">${htmlEscape(s.title || "Series")}${s.year ? ` (${s.year})` : ""}</div>
+            ${s.episodes.slice(0, 5).map((e) => {
+              const label = `Season ${makeTwoDigits(e.season)}, Episode ${makeTwoDigits(e.ep)} — ${htmlEscape(e.name || "Episode")}`;
+              return e.href
+                ? `<div><a href="${e.href}" target="_blank" rel="noreferrer" style="text-decoration:none;color:#93c5fd">${label}</a></div>`
+                : `<div>${label}</div>`;
+            }).join("")}
+            ${s.episodes.length > 5 ? `<div style="opacity:.7;margin-top:4px">And more…</div>` : ""}
+          </td>
+        </tr>`).join("")}
+    </table>`;
+}
 function platformIconUrl(nameRaw = "") {
   const base = absUrl("/assets/platforms");
   const s = String(nameRaw).toLowerCase();
@@ -1532,15 +1573,13 @@ async function renderTemplate(html, historyDays) {
     const daysLocal = Math.max(1, Number(historyDays || CONFIG.lookbackDays || 7));
     let rows = [];
     try {
-      const r = await fetch(
-        apiUrl(`/api/tautulli/recent?type=movie&days=${encodeURIComponent(daysLocal)}&limit=20`)
-      );
+      const r = await fetch(apiUrl(`/api/tautulli/recent?type=movie&days=${encodeURIComponent(daysLocal)}&limit=20`));
       if (r.ok) {
         const j = await r.json();
         rows = Array.isArray(j?.rows) ? j.rows : [];
       }
     } catch {}
-
+  
     const baseItems = rows.slice(0, 8).map((r) => ({
       id: r?.rating_key || r?.ratingKey || r?.id,
       title: r?.title || "Untitled",
@@ -1549,7 +1588,7 @@ async function renderTemplate(html, historyDays) {
       href: r?.webHref || r?.deepLink || r?.href || null,
       summary: r?.summary || r?.plot || r?.tagline || "",
     }));
-
+  
     await Promise.all(
       baseItems.map(async (it) => {
         if ((!it.href || !it.summary) && it.id != null) {
@@ -1568,69 +1607,45 @@ async function renderTemplate(html, historyDays) {
         it.href = await absolutizePlexHref(it.href, it.id);
       })
     );
-
-    const truncate = (s, n = 420) => {
-      const t = String(s || "");
-      return t.length > n ? t.slice(0, n - 1) + "…" : t;
-    };
-
-    const grid = baseItems.length
-      ? `<div style="display:flex;flex-direction:column;gap:14px">
-           ${baseItems
-             .map((x) => {
-               const img = x.poster ? posterImg(x.poster, x.title, 96, 144) : "";
-               const titleHtml = x.href
-                 ? `<a href="${x.href}" target="_blank" rel="noreferrer" style="text-decoration:none;color:#93c5fd;font-size:14px;font-weight:600;display:block;margin-bottom:6px">
-                      ${htmlEscape(x.title)}${x.year ? ` (${x.year})` : ""}
-                    </a>`
-                 : `<div style="font-size:14px;font-weight:600;margin-bottom:6px">${htmlEscape(x.title)}${x.year ? ` (${x.year})` : ""}</div>`;
-               const left = `<div style="width:110px;flex-shrink:0">${img}</div>`;
-               const right = `<div style="flex:1;min-width:0;font-size:13px;line-height:1.45">
-                                ${titleHtml}
-                                ${htmlEscape(truncate(x.summary || "No description available.", 420))}
-                              </div>`;
-               return `<div style="display:flex;gap:14px;align-items:flex-start">${left}${right}</div>`;
-             })
-             .join("")}
-         </div>`
+  
+    const body = baseItems.length
+      ? stackedList(baseItems)
       : `<div style="opacity:.75">No recent movies in the last ${daysLocal} days.</div>`;
-
-    out = out.replaceAll("{{CARD_RECENT_MOVIES}}", cardHtml("Recently added Movies", grid));
+  
+    out = out.replaceAll("{{CARD_RECENT_MOVIES}}", cardHtml("Recently added Movies", body));
   }
 
   // RECENT EPISODES
   if (out.includes("{{CARD_RECENT_EPISODES}}")) {
     const daysLocal = Math.max(1, Number(historyDays || CONFIG.lookbackDays || 7));
-
+  
     let rows = [];
     try {
-      const r = await fetch(
-        apiUrl(`/api/tautulli/recent?type=episode&days=${encodeURIComponent(daysLocal)}&limit=50`)
-      );
+      const r = await fetch(apiUrl(`/api/tautulli/recent?type=episode&days=${encodeURIComponent(daysLocal)}&limit=50`));
       if (r.ok) {
         const j = await r.json();
         rows = Array.isArray(j?.rows) ? j.rows : [];
       }
     } catch {}
-
+  
     const toIntOrNull = (v) => {
       const n = parseInt(v, 10);
       return Number.isFinite(n) ? n : null;
     };
-
+  
     const bySeries = new Map();
     for (const r of rows) {
       const seriesTitleRaw = String(r?.grandparent_title || r?.title || "Series").trim();
       if (/^jeopardy!?$/i.test(seriesTitleRaw)) continue;
-
+  
       const year = r?.grandparent_year || r?.year || null;
       const seriesKey = `${seriesTitleRaw}::${year || ""}`;
-
+  
       const poster = posterFrom({
         grandparentThumb: r?.grandparent_thumb || r?.grandparentThumb,
         poster: r?.grandparent_poster || r?.poster || null,
       });
-
+  
       if (!bySeries.has(seriesKey)) {
         bySeries.set(seriesKey, {
           title: seriesTitleRaw,
@@ -1639,7 +1654,7 @@ async function renderTemplate(html, historyDays) {
           episodes: [],
         });
       }
-
+  
       const group = bySeries.get(seriesKey);
       group.episodes.push({
         id: r?.rating_key || r?.ratingKey || r?.id,
@@ -1660,7 +1675,7 @@ async function renderTemplate(html, historyDays) {
         href: r?.webHref || r?.deepLink || r?.href || null,
       });
     }
-
+  
     const seriesList = [...bySeries.values()];
     await Promise.all(
       seriesList.map(async (s) => {
@@ -1671,32 +1686,12 @@ async function renderTemplate(html, historyDays) {
         );
       })
     );
-
-    const makeTwoDigits = (n) => (n == null ? "??" : String(n).padStart(2, "0"));
-
-    const grid = seriesList.length
-      ? `<div style="display:flex;flex-direction:column;gap:16px">
-           ${seriesList
-             .map((s) => {
-               const left = s.poster
-                 ? `<div style="width:110px;flex-shrink:0">${posterImg(s.poster, s.title, 96, 144)}</div>`
-                 : `<div style="width:110px;flex-shrink:0"></div>`;
-               const header = `<div style="font-size:14px;font-weight:600;margin-bottom:6px">${htmlEscape(s.title)}${s.year ? ` (${s.year})` : ""}</div>`;
-               const lines = s.episodes.slice(0, 5).map((e) => {
-                 const label = `Season ${makeTwoDigits(e.season)}, Episode ${makeTwoDigits(e.ep)} — ${htmlEscape(e.name)}`;
-                 return e.href
-                   ? `<div><a href="${e.href}" target="_blank" rel="noreferrer" style="text-decoration:none;color:#93c5fd">${label}</a></div>`
-                   : `<div>${label}</div>`;
-               }).join("");
-               const more = s.episodes.length > 5 ? `<div style="opacity:.7;margin-top:4px">And more…</div>` : "";
-               const right = `<div style="flex:1;min-width:0;font-size:13px;line-height:1.45">${header}${lines}${more}</div>`;
-               return `<div style="display:flex;gap:14px;align-items:flex-start">${left}${right}</div>`;
-             })
-             .join("")}
-         </div>`
+  
+    const body = seriesList.length
+      ? stackedSeries(seriesList)
       : `<div style="opacity:.75">No recent TV episodes in the last ${daysLocal} days.</div>`;
-
-    out = out.replaceAll("{{CARD_RECENT_EPISODES}}", cardHtml("Recently added TV Episodes", grid));
+  
+    out = out.replaceAll("{{CARD_RECENT_EPISODES}}", cardHtml("Recently added TV Episodes", body));
   }
 
   return out;
