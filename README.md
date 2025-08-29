@@ -117,3 +117,11 @@ Clone the repository and install dependencies:
 git clone https://github.com/jeff-blep/newzlettr.git
 cd newzlettr
 npm install
+```
+To fire it up:
+```bash
+npm run newzlettr
+```
+Then, head over to ```http://localhost:5173```, click the Settings cog on the top left, enter your info, you're off to the races!
+
+
