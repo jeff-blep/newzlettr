@@ -357,18 +357,6 @@ app.use(express.json({ limit: "2mb" }));
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 app.use("/assets", express.static(PUBLIC_DIR));
 
-// DEBUG
-try {
-  const exists = fs.existsSync(PUBLIC_DIR);
-  console.log("[assets] mount ->", PUBLIC_DIR, exists ? "(exists)" : "(MISSING)");
-  if (exists) {
-    const platformsDir = path.join(PUBLIC_DIR, "platforms");
-    const list = fs.existsSync(platformsDir) ? fs.readdirSync(platformsDir) : [];
-    console.log("[assets] /platforms contains:", list);
-  }
-} catch (e) {
-  console.log("[assets] check failed:", e?.message || e);
-}
 
 // (then your routes like __whoami, etc.)
 app.get("/__whoami", (_req, res) => {
@@ -386,7 +374,6 @@ const plexRouter = await loadRouter(new URL("./routes/plex.mjs", import.meta.url
 const tautulliRouter = await loadRouter(new URL("./routes/tautulli.mjs", import.meta.url), "tautulli");
 if (plexRouter) app.use("/api/plex", plexRouter);
 if (tautulliRouter) app.use("/api/tautulli", tautulliRouter);
-console.log("[router] tautulli: ENABLED (guard in index.mjs will gate access)");
 
 /* -------------------------- tiny debug observability ----------------------- */
 app.get("/api/_routes", (_req, res) => {
@@ -601,6 +588,7 @@ app.post("/api/newsletters", (req, res) => {
     const recipients = Array.isArray(n?.recipients)
       ? n.recipients.map((e) => String(e || "").toLowerCase()).filter((e) => isEmail(e))
       : [];
+    const sendAsBcc = !!n?.sendAsBcc;
     const schedule = typeof n?.schedule === "object" && n.schedule ? { ...n.schedule } : null;
     const enabled = !!n?.enabled;
     const historyDays =
@@ -617,6 +605,7 @@ app.post("/api/newsletters", (req, res) => {
       templateId: n?.templateId ? String(n.templateId) : undefined,
       templateName: n?.templateName ? String(n.templateName) : undefined,
       recipients,
+      sendAsBcc,
       schedule,
       enabled,
       historyDays,
@@ -705,19 +694,6 @@ app.post("/api/config", (req, res) => {
     }
     if (typeof b.cloudinary.folder === "string") CONFIG.cloudinary.folder = b.cloudinary.folder;
   }
-  // --- debug log persisted config (mask secret) ---
-  try {
-    const dbg = {
-      imageHost: CONFIG.imageHost,
-      cloudinary: {
-        cloudName: CONFIG.cloudinary?.cloudName || "",
-        apiKey: CONFIG.cloudinary?.apiKey || "",
-        apiSecret: CONFIG.cloudinary?.apiSecret ? "******" : "",
-        folder: CONFIG.cloudinary?.folder || "",
-      },
-    };
-    console.log("[/api/config] persisted", JSON.stringify(dbg));
-  } catch {}
   if (b.ownerRecommendation && typeof b.ownerRecommendation === "object") {
     CONFIG.ownerRecommendation = b.ownerRecommendation;
   }
@@ -1869,7 +1845,6 @@ function restartScheduler() {
   SCHEDULER_TIMER = setInterval(async () => {
     try { await schedulerTick(); } catch (e) { console.error("[scheduler] tick error:", e); }
   }, 30 * 1000);
-  console.log("[scheduler] restarted");
   getScheduledJobsSnapshot();
 }
 restartScheduler();
@@ -1939,7 +1914,6 @@ async function schedulerTick() {
     if (wasJustSent(n, now.ms)) continue;
     if (isDue(n.schedule)) {
       try {
-        console.log(`[scheduler] due -> ${n.name} (${n.id})`);
         const sent = await sendNewsletter(n);
         if (sent) {
           n.lastSentAt = Date.now();
@@ -1955,9 +1929,13 @@ async function schedulerTick() {
 /* =============================== SENDING ================================== */
 async function sendNewsletter(nl, { manual = false } = {}) {
     const toList = Array.isArray(nl.recipients) ? nl.recipients.filter(isEmail) : [];
-    if (toList.length === 0) {
-        console.log("[send] skipping — no recipients selected");
-        return false;
+    const useBccMode = !!nl.sendAsBcc;
+    const fromCandidate = CONFIG.fromAddress || CONFIG.smtpUser;
+    const finalTo = useBccMode ? [fromCandidate].filter(Boolean) : toList;
+    const finalBcc = useBccMode ? toList : [];
+
+    if (finalTo.length === 0 && finalBcc.length === 0) {
+      return false;
     }
     const templates = loadTemplatesSafe();
     const tpl = templates.find((t) => t.id === nl.templateId);
@@ -1996,15 +1974,15 @@ async function sendNewsletter(nl, { manual = false } = {}) {
 
     const msg = {
       from: fromAddr,
-      to: toList.join(","),
+      to: finalTo.join(","),
+      bcc: finalBcc.length ? finalBcc.join(",") : undefined,
       subject,
       html: processed.html,
       attachments: processed.attachments && processed.attachments.length ? processed.attachments : undefined,
       headers: { "X-Newzlettr-Newsletter-ID": nl.id || "", "X-Newzlettr-Mode": "template" },
     };
 
-    const info = await transport.sendMail(msg);
-    console.log("[send] ok:", info.messageId);
+    await transport.sendMail(msg);
     return true;
 }
 
@@ -2036,9 +2014,25 @@ app.post("/api/newsletters/:id/send-now", async (req, res) => {
 
     if (toList.length === 0 && bccList.length === 0) {
       const fromNl = Array.isArray(nl.recipients) ? nl.recipients : [];
-      toList = fromNl
+      const cleaned = fromNl
         .map((e) => String(e || "").trim().toLowerCase())
         .filter((e) => isEmail(e));
+
+      if (nl.sendAsBcc) {
+        bccList = cleaned;
+      } else {
+        toList = cleaned;
+      }
+    }
+
+    // Honor per-newsletter "send as BCC" toggle for Send Now; allow per-call override from body
+    const useBccMode = (req.body && typeof req.body.sendAsBcc !== "undefined")
+      ? !!req.body.sendAsBcc
+      : !!nl.sendAsBcc;
+    if (useBccMode) {
+      // Move all explicit/derived recipients into BCC and leave To: empty (will default to From later)
+      bccList = [...toList, ...bccList].filter((e, i, arr) => arr.indexOf(e) === i);
+      toList = [];
     }
 
     if (toList.length === 0 && bccList.length === 0) {
@@ -2091,8 +2085,13 @@ app.post("/api/newsletters/:id/send-now", async (req, res) => {
     try { await transport.verify(); }
     catch (e) { return res.status(400).json({ ok: false, error: `SMTP verification failed: ${e?.message || e}` }); }
 
-    // Safe To header: if only BCC, use configured From address
-    const toHeader = toList.length ? toList.join(", ") : CONFIG.fromAddress;
+    // Safe To header: if only BCC, always use configured From address
+    let toHeader;
+    if (useBccMode) {
+      toHeader = CONFIG.fromAddress; // single safe To header
+    } else {
+      toHeader = toList.length ? toList.join(", ") : CONFIG.fromAddress;
+    }
 
     const msg = {
       from: CONFIG.fromAddress,
@@ -2104,6 +2103,11 @@ app.post("/api/newsletters/:id/send-now", async (req, res) => {
       ...(typeof _imgAttachments !== "undefined" ? { attachments: _imgAttachments } : {}),
       headers: { "X-Newzlettr-Newsletter-ID": id, "X-Newzlettr-Mode": useRaw ? "raw" : "template" },
     };
+
+    // Force safe To header in BCC mode
+    if (useBccMode) {
+        msg.to = "Plex Guests:;";
+    }
 
     if (body.dryRun) {
       return res.json({
