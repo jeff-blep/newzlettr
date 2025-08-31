@@ -30,6 +30,7 @@ type Newsletter = {
   templateId?: string; // points to /api/templates item
   templateName?: string; // denormalized for display convenience
   recipients?: string[]; // selected recipient emails for this newsletter
+  sendAsBcc?: boolean;
   enabled?: boolean;
   updatedAt?: number;
   createdAt?: number;
@@ -234,6 +235,7 @@ export default function NewsletterCard() {
       templateId: undefined,
       templateName: undefined,
       recipients: [], // none selected by default
+      sendAsBcc: false,
       enabled: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -242,7 +244,11 @@ export default function NewsletterCard() {
   }
 
   function openEdit(n: Newsletter) {
-    setDraft({ ...n, recipients: Array.isArray(n.recipients) ? n.recipients : [] });
+    setDraft({
+      ...n,
+      recipients: Array.isArray(n.recipients) ? n.recipients : [],
+      sendAsBcc: !!(n as any).sendAsBcc,
+    });
     setOpenModal(true);
   }
 
@@ -276,6 +282,7 @@ export default function NewsletterCard() {
       ...draft,
       templateName: pickTemplateName(draft.templateId) ?? draft.templateName,
       recipients: Array.isArray(draft.recipients) ? draft.recipients : [],
+      sendAsBcc: !!draft.sendAsBcc,
       updatedAt: Date.now(),
     };
     const exists = list.find((x) => x.id === normalized.id);
@@ -743,10 +750,21 @@ export default function NewsletterCard() {
 
                   {/* Recipients selector */}
                   <div className="md:col-span-2 rounded-lg border border-base-300 p-3 bg-base-200/40">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="font-medium">Recipients</div>
-                      <div className="text-xs opacity-70">
-                        {draft.recipients?.length || 0} selected
+                      <div className="flex items-center gap-3">
+                        <label className="label cursor-pointer gap-2" title="If enabled, all selected Recipients will be placed on BCC. The To: field will be set to your From address.">
+                          <span className="label-text text-sm">Send to recipients as BCC</span>
+                          <input
+                            type="checkbox"
+                            className="toggle toggle-sm toggle-primary"
+                            checked={!!draft.sendAsBcc}
+                            onChange={(e) => setDraft({ ...draft, sendAsBcc: e.target.checked })}
+                          />
+                        </label>
+                        <div className="text-xs opacity-70">
+                          {draft.recipients?.length || 0} selected
+                        </div>
                       </div>
                     </div>
 
