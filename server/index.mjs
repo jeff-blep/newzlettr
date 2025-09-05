@@ -1186,13 +1186,13 @@ function stackedSeries(seriesList) {
           </td>
           <td valign="top" style="padding:0 0 16px 0;font-size:13px;line-height:1.45">
             <div style="font-size:14px;font-weight:600;margin-bottom:6px">${htmlEscape(s.title || "Series")}${s.year ? ` (${s.year})` : ""}</div>
-            ${s.episodes.slice(0, 5).map((e) => {
+            ${s.episodes.slice(0, 6).map((e) => {
               const label = `Season ${makeTwoDigits(e.season)}, Episode ${makeTwoDigits(e.ep)} — ${htmlEscape(e.name || "Episode")}`;
               return e.href
                 ? `<div><a href="${e.href}" target="_blank" rel="noreferrer" style="text-decoration:none;color:#93c5fd">${label}</a></div>`
                 : `<div>${label}</div>`;
             }).join("")}
-            ${s.episodes.length > 5 ? `<div style="opacity:.7;margin-top:4px">And more…</div>` : ""}
+            ${s.episodes.length > 6 ? `<div style="opacity:.7;margin-top:4px">and more</div>` : ""}
           </td>
         </tr>`).join("")}
     </table>`;
@@ -1594,34 +1594,48 @@ async function renderTemplate(html, historyDays) {
   // RECENT EPISODES
   if (out.includes("{{CARD_RECENT_EPISODES}}")) {
     const daysLocal = Math.max(1, Number(historyDays || CONFIG.lookbackDays || 7));
-  
+
     let rows = [];
     try {
-      const r = await fetch(apiUrl(`/api/tautulli/recent?type=episode&days=${encodeURIComponent(daysLocal)}&limit=50`));
+      const r = await fetch(apiUrl(`/api/tautulli/recent?type=episode&days=${encodeURIComponent(daysLocal)}&limit=500`));
       if (r.ok) {
         const j = await r.json();
         rows = Array.isArray(j?.rows) ? j.rows : [];
       }
     } catch {}
-  
+
+    // Also fetch season rows for series that have no individual episodes returned in-window
+    let seasonRows = [];
+    try {
+      const rSeasons = await fetch(
+        apiUrl(`/api/tautulli/passthrough?cmd=get_recently_added&time_range=${encodeURIComponent(daysLocal)}&count=200`),
+        { headers: { 'x-internal-render': '1' } }
+      );
+      if (rSeasons.ok) {
+        const jSeasons = await rSeasons.json().catch(() => null);
+        const seasonRowsRaw = Array.isArray(jSeasons?.recently_added) ? jSeasons.recently_added : [];
+        seasonRows = seasonRowsRaw.filter((x) => String(x?.media_type || x?.type || "").toLowerCase() === "season");
+      }
+    } catch {}
+
     const toIntOrNull = (v) => {
       const n = parseInt(v, 10);
       return Number.isFinite(n) ? n : null;
     };
-  
+
     const bySeries = new Map();
     for (const r of rows) {
       const seriesTitleRaw = String(r?.grandparent_title || r?.title || "Series").trim();
       if (/^jeopardy!?$/i.test(seriesTitleRaw)) continue;
-  
+
       const year = r?.grandparent_year || r?.year || null;
       const seriesKey = `${seriesTitleRaw}::${year || ""}`;
-  
+
       const poster = posterFrom({
         grandparentThumb: r?.grandparent_thumb || r?.grandparentThumb,
         poster: r?.grandparent_poster || r?.poster || null,
       });
-  
+
       if (!bySeries.has(seriesKey)) {
         bySeries.set(seriesKey, {
           title: seriesTitleRaw,
@@ -1630,7 +1644,7 @@ async function renderTemplate(html, historyDays) {
           episodes: [],
         });
       }
-  
+
       const group = bySeries.get(seriesKey);
       group.episodes.push({
         id: r?.rating_key || r?.ratingKey || r?.id,
@@ -1651,7 +1665,110 @@ async function renderTemplate(html, historyDays) {
         href: r?.webHref || r?.deepLink || r?.href || null,
       });
     }
-  
+
+    // Fallback: expand series that only appeared as seasons (no per-episode rows returned)
+    const existingSeries = new Set(Array.from(bySeries.values()).map((s) => String(s.title || "").toLowerCase()));
+
+    async function expandSeasonChildren(sr) {
+      const seriesTitle = String(sr?.parent_title || "").trim();
+      if (!seriesTitle || existingSeries.has(seriesTitle.toLowerCase())) return null;
+
+      // 1) Fetch children (episodes) for the season via Tautulli
+      let kids = [];
+      try {
+        const rr = await fetch(
+          apiUrl(`/api/tautulli/passthrough?cmd=get_children_metadata&rating_key=${encodeURIComponent(String(sr.rating_key || sr.parent_rating_key || ""))}`),
+          { headers: { 'x-internal-render': '1' } }
+        );
+        if (rr.ok) {
+          const jj = await rr.json().catch(() => null);
+          const list = (jj?.children_list) || (jj?.data?.children_list) || (jj?.response?.data?.children_list) || [];
+          if (Array.isArray(list)) kids = list;
+        }
+      } catch {}
+
+      // Build a best-effort poster from the season/show; may be upgraded from a child later
+      let poster = posterFrom({
+        grandparentThumb: sr?.grandparent_thumb || sr?.grandparentThumb,
+        poster: sr?.parent_thumb || sr?.thumb || sr?.art || null,
+      });
+
+      // No children? Keep a minimal informational stub
+      if (!kids.length) {
+        return {
+          title: seriesTitle,
+          year: null,
+          poster,
+          episodes: [{
+            season: null,
+            ep: null,
+            name: (sr?.title && /season\s*\d+/i.test(sr.title) ? `${sr.title} added` : "New season added"),
+            href: null
+          }],
+        };
+      }
+
+      // Sort by added_at DESC and cap to 6
+      kids.sort((a, b) => (Number(b?.added_at || 0) - Number(a?.added_at || 0)));
+      const top = kids.slice(0, 6);
+
+      const toIntOrNull = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+      const episodes = [];
+
+      await Promise.all(top.map(async (c) => {
+        let seasonNum = toIntOrNull(c?.parent_index);
+        let epNum     = toIntOrNull(c?.index);
+        let name      = c?.title || "Episode";
+        let href      = null;
+        const epId    = c?.rating_key || c?.ratingKey || null;
+
+        // If numbers are missing, enrich from Plex
+        if ((!seasonNum || !epNum) && epId != null) {
+          try {
+            const pr = await fetch(apiUrl(`/api/plex/item/${encodeURIComponent(String(epId))}`));
+            if (pr.ok) {
+              const pj = await pr.json().catch(() => null);
+              const item = pj?.item;
+              if (item) {
+                seasonNum = seasonNum ?? toIntOrNull(item?.parentIndex ?? item?.seasonIndex ?? item?.season_number);
+                epNum     = epNum     ?? toIntOrNull(item?.index ?? item?.episodeIndex ?? item?.episode_number);
+                name      = name || item?.title || item?.episodeTitle || "Episode";
+                href      = item?.webHref || item?.deepLink || item?.href || null;
+
+                // Upgrade poster from a child if our series poster is missing
+                if (!poster) {
+                  const pSrc = posterFrom(item);
+                  if (pSrc) poster = pSrc;
+                }
+              }
+            }
+          } catch {}
+        }
+
+        // Build a deep link if not provided
+        if (!href && epId != null) {
+          href = await absolutizePlexHref(null, epId);
+        }
+
+        episodes.push({ season: seasonNum, ep: epNum, name, href, id: epId });
+      }));
+
+      return {
+        title: seriesTitle,
+        year: null,
+        poster,
+        episodes,
+      };
+    }
+
+    // Expand each season-only series and merge into bySeries
+    for (const sr of seasonRows) {
+      const expanded = await expandSeasonChildren(sr);
+      if (expanded) {
+        bySeries.set(`${expanded.title}::season_fallback`, expanded);
+      }
+    }
+
     const seriesList = [...bySeries.values()];
     await Promise.all(
       seriesList.map(async (s) => {
@@ -1662,11 +1779,11 @@ async function renderTemplate(html, historyDays) {
         );
       })
     );
-  
+
     const body = seriesList.length
       ? stackedSeries(seriesList)
       : `<div style="opacity:.75">No recent TV episodes in the last ${daysLocal} days.</div>`;
-  
+
     out = out.replaceAll("{{CARD_RECENT_EPISODES}}", cardHtml("Recently added TV Episodes", body));
   }
 
