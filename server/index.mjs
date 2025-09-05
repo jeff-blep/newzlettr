@@ -1549,14 +1549,14 @@ async function renderTemplate(html, historyDays) {
     const daysLocal = Math.max(1, Number(historyDays || CONFIG.lookbackDays || 7));
     let rows = [];
     try {
-      const r = await fetch(apiUrl(`/api/tautulli/recent?type=movie&days=${encodeURIComponent(daysLocal)}&limit=20`));
+      const r = await fetch(apiUrl(`/api/tautulli/recent?type=movie&days=${encodeURIComponent(daysLocal)}&limit=500`));
       if (r.ok) {
         const j = await r.json();
         rows = Array.isArray(j?.rows) ? j.rows : [];
       }
     } catch {}
   
-    const baseItems = rows.slice(0, 8).map((r) => ({
+    const baseItems = rows.map((r) => ({
       id: r?.rating_key || r?.ratingKey || r?.id,
       title: r?.title || "Untitled",
       year: r?.year,
