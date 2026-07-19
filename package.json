@@ -7,9 +7,9 @@
     "api": "PORT=3001 node server/index.mjs",
     "newzlettr": "concurrently \"npm run dev\" \"npm run api\"",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0",
     "start": "node server/index.mjs",
-    "newzlettr:preview": "concurrently \"vite preview\" \"PORT=3001 node server/index.mjs\""
+    "newzlettr:preview": "PORT=3001 node server/index.mjs"
   },
   "dependencies": {
     "@lexical/history": "^0.34.0",

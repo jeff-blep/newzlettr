@@ -239,18 +239,54 @@ router.get("/recent", async (req, res) => {
 
     const type = String(req.query.type || "").toLowerCase(); // optional: movie|episode
     const days = Math.max(1, Math.min(90, parseInt(String(req.query.days ?? "7"), 10) || 7));
-    const limit = Math.max(1, Math.min(50, parseInt(String(req.query.limit ?? "12"), 10) || 12));
+    const limit = Math.max(1, Math.min(500, parseInt(String(req.query.limit ?? "12"), 10) || 12));
 
     const data = await tautulliFetch("get_recently_added", { time_range: days, count: limit }, tcfg);
     const rows = Array.isArray(data?.recently_added) ? data.recently_added : [];
 
-    const filtered = type === "movie"
-      ? rows.filter((r) => String(r?.media_type || r?.type || "").toLowerCase() === "movie")
-      : type === "episode"
-      ? rows.filter((r) => String(r?.media_type || r?.type || "").toLowerCase() === "episode")
-      : rows;
+    // Normalize TV rows so downstream can always key on grandparent_title
+    const norm = rows.map((r) => {
+      const t = String(r?.media_type || r?.type || "").toLowerCase();
+      if (t === "season") {
+        const gp = (r?.grandparent_title ?? "").trim();
+        const parent = (r?.parent_title ?? "").trim();
+        if (!gp && parent) {
+          return { ...r, grandparent_title: parent };
+        }
+      } else if (t === "show") {
+        const title = (r?.title ?? "").trim();
+        if (title) {
+          return { ...r, grandparent_title: title };
+        }
+      }
+      return r;
+    });
 
-    res.json({ ok: true, rows: filtered });
+    // Enforce time window locally using added_at (seconds)
+    const nowSec = Math.floor(Date.now() / 1000);
+    const cutoff = nowSec - days * 24 * 60 * 60;
+    const inWindow = norm.filter((r) => {
+      const ts = Number(r?.added_at ?? r?.addedAt ?? r?.created_at ?? 0);
+      // allow small clock skew (+1h)
+      return Number.isFinite(ts) && ts >= cutoff && ts <= nowSec + 3600;
+    });
+
+    const filtered = type === "movie"
+      ? inWindow.filter((r) => String(r?.media_type || r?.type || "").toLowerCase() === "movie")
+      : type === "episode"
+      ? inWindow.filter((r) => String(r?.media_type || r?.type || "").toLowerCase() === "episode")
+      : inWindow;
+
+    // Sort newest-first using added_at (fallbacks supported)
+    const rowsSorted = filtered.slice().sort((a, b) => {
+      const ta = Number(a?.added_at ?? a?.addedAt ?? a?.created_at ?? 0);
+      const tb = Number(b?.added_at ?? b?.addedAt ?? b?.created_at ?? 0);
+      return tb - ta;
+    });
+    // Enforce a post-filter cap to avoid huge previews. For TV and movies, keep it modest.
+    const effectiveLimit = (type === "episode" || type === "movie") ? Math.min(limit, 25) : limit;
+    const limited = rowsSorted.slice(0, effectiveLimit);
+    res.json({ ok: true, rows: limited });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }

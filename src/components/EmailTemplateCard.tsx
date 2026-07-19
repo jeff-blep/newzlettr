@@ -750,8 +750,7 @@ export default function EmailTemplateCard({ config, save }: Props) {
           year: r?.year,
           poster: posterFrom(r),
           summary: r?.summary || r?.plot || r?.tagline || "",
-        }))
-        .slice(0, 6);
+        }));
       const body =
         items.length > 0
           ? stackedList(items)
@@ -768,8 +767,7 @@ export default function EmailTemplateCard({ config, save }: Props) {
           title: r?.grandparent_title ? `${r.grandparent_title}${r.title ? " — " + r.title : ""}` : r?.title || "Episode",
           poster: posterFrom(r),
           summary: r?.summary || r?.plot || "",
-        }))
-        .slice(0, 6);
+        }));
       const body =
         items.length > 0
           ? stackedList(items)
