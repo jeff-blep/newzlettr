@@ -1,0 +1,16 @@
+:root {
+  --nz-page-bg: #1f2023;
+  --nz-sidebar-bg: #26272b;
+  --nz-header-bg: #2d2e33;
+  --nz-border: #36373d;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--nz-page-bg);
+}
