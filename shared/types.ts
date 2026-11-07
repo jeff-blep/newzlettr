@@ -73,12 +73,51 @@ export interface ImagesSettings {
   folder: string;
 }
 
+export interface ContentSettings {
+  headerTitle: string;
+  footerText: string;
+  accentColor: string;
+  itemsPerCard: number;
+  recentMoviesMax: number;
+  recentShowsMax: number;
+  episodesPerShow: number;
+  excludedShows: string[];
+  showSummaries: boolean;
+  includeWatchLinks: boolean;
+}
+
 export interface SettingsSections {
   general: GeneralSettings;
   plex: PlexSettings;
   tautulli: TautulliSettings;
   smtp: SmtpSettings;
   images: ImagesSettings;
+  content: ContentSettings;
+}
+
+/* -------------------------------- templates -------------------------------- */
+
+export interface CardInfo {
+  token: string;
+  label: string;
+  description: string;
+}
+
+export interface Template {
+  id: number;
+  name: string;
+  html: string;
+  updatedAt: string;
+  /** Newsletters that use this template. */
+  usedBy: { id: number; name: string }[];
+}
+
+export interface RenderResult {
+  html: string;
+  subject?: string;
+  warnings: string[];
+  /** Size of the final email in bytes (preview mode: approximate). */
+  bytes: number;
 }
 
 export interface TestResult {

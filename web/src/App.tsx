@@ -26,6 +26,7 @@ export function App() {
         {NAV.flatMap((item) => [
           ...(item.element ? [<Route key={item.path} path={item.path} element={item.element} />] : []),
           ...(item.children ?? []).map((c) => <Route key={c.path} path={c.path} element={c.element} />),
+          ...(item.routes ?? []).map((r) => <Route key={r.path} path={r.path} element={r.element} />),
           ...(item.children?.length && !item.element
             ? [<Route key={item.path} path={item.path} element={<Navigate to={item.children[0]!.path} replace />} />]
             : []),

@@ -19,6 +19,9 @@ import { ImagesSettings } from "../pages/settings/ImagesSettings";
 import { RecipientsPage } from "../pages/RecipientsPage";
 import { HostPickPage } from "../pages/HostPickPage";
 import { StatsPage } from "../pages/StatsPage";
+import { TemplatesPage } from "../pages/templates/TemplatesPage";
+import { TemplateEditorPage } from "../pages/templates/TemplateEditorPage";
+import { ContentSettings } from "../pages/settings/ContentSettings";
 
 export interface NavChild {
   label: string;
@@ -31,6 +34,8 @@ export interface NavItem {
   icon: ReactNode;
   element?: ReactNode;
   children?: NavChild[];
+  /** Extra routes under this section that don't appear in the sidebar (e.g. detail pages). */
+  routes?: { path: string; element: ReactNode }[];
 }
 
 const soon = (title: string, milestone: number, what: string) => (
@@ -49,7 +54,8 @@ export const NAV: NavItem[] = [
     label: "Templates",
     path: "/templates",
     icon: <IconTemplate size={18} />,
-    element: soon("Templates", 4, "Rich-text templates with insertable Plex/Tautulli cards and a true preview."),
+    element: <TemplatesPage />,
+    routes: [{ path: "/templates/:id", element: <TemplateEditorPage /> }],
   },
   {
     label: "Recipients",
@@ -84,7 +90,7 @@ export const NAV: NavItem[] = [
       { label: "Connections", path: "/settings/connections", element: <ConnectionsSettings /> },
       { label: "Email", path: "/settings/email", element: <EmailSettings /> },
       { label: "Images", path: "/settings/images", element: <ImagesSettings /> },
-      { label: "Content", path: "/settings/content", element: soon("Content", 4, "Items per card, excluded shows, accent color.") },
+      { label: "Content", path: "/settings/content", element: <ContentSettings /> },
     ],
   },
   {

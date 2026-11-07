@@ -49,12 +49,32 @@ export const imagesSchema = z.object({
   folder: z.string().trim().default("newzlettr"),
 });
 
+export const contentSchema = z.object({
+  /** Shown in the email header. Empty = "<Plex server name> Newsletter". */
+  headerTitle: z.string().trim().max(80).default(""),
+  footerText: z.string().trim().max(500).default(""),
+  accentColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #7c5cff")
+    .default("#7c5cff"),
+  /** Rows in ranked cards (most watched, popular, platforms). */
+  itemsPerCard: z.number().int().min(1).max(15).default(5),
+  recentMoviesMax: z.number().int().min(1).max(30).default(12),
+  recentShowsMax: z.number().int().min(1).max(30).default(10),
+  episodesPerShow: z.number().int().min(1).max(20).default(4),
+  /** Show titles never listed under recently added (e.g. daily shows). Case-insensitive. */
+  excludedShows: z.array(z.string().trim().min(1)).max(200).default([]),
+  showSummaries: z.boolean().default(true),
+  includeWatchLinks: z.boolean().default(true),
+});
+
 export const SECTIONS = {
   general: generalSchema,
   plex: plexSchema,
   tautulli: tautulliSchema,
   smtp: smtpSchema,
   images: imagesSchema,
+  content: contentSchema,
 } as const;
 
 /** Fields never sent to the browser in clear text. */

@@ -8,6 +8,7 @@ import { settingsRouter } from "./api/settings.js";
 import { systemRouter } from "./api/system.js";
 import { recipientsRouter } from "./api/recipients.js";
 import { mediaRouter } from "./api/media.js";
+import { renderRouter, templatesRouter } from "./api/templates.js";
 import { logger } from "./logging.js";
 import { ASSETS_DIR, WEB_DIST } from "./paths.js";
 
@@ -35,6 +36,8 @@ export function createApp(db: DB): express.Express {
   app.use("/api/settings", settingsRouter(db));
   app.use("/api/system", systemRouter(db));
   app.use("/api/recipients", recipientsRouter(db));
+  app.use("/api/templates", templatesRouter(db));
+  app.use("/api/render", renderRouter(db));
   app.use("/api", mediaRouter(db));
   app.use("/api", (_req, res) => res.status(404).json({ error: "not found" }));
 

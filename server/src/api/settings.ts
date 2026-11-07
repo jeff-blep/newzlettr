@@ -24,7 +24,7 @@ import {
   unmaskPatch,
 } from "../settings.js";
 
-const EDITABLE = ["plex", "tautulli", "smtp", "images"] as const satisfies readonly SectionName[];
+const EDITABLE = ["plex", "tautulli", "smtp", "images", "content"] as const satisfies readonly SectionName[];
 type Editable = (typeof EDITABLE)[number];
 const isEditable = (s: string): s is Editable => (EDITABLE as readonly string[]).includes(s);
 
@@ -104,6 +104,8 @@ export function settingsRouter(db: DB): Router {
       case "images":
         result = await pingCloudinary(draft as ReturnType<typeof SECTIONS.images.parse>);
         break;
+      default:
+        return res.status(404).json({ error: "this section has no test" });
     }
     log.info({ section: s, ok: result.ok }, `connection test: ${result.message}`);
     res.json(result);
