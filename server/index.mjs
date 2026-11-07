@@ -2022,24 +2022,49 @@ function wasJustSent(n, nowMs) {
   const last = Number(n.lastSentAt || 0);
   return nowMs - last < 2 * 60 * 1000;
 }
+// DUPLICATE-SEND FIX (2026-11-07): the 30s interval puts two ticks inside the scheduled
+// minute, a send takes ~30s, and lastSentAt used to be written only AFTER the send - so the
+// second tick re-sent the whole newsletter. Now: (1) ticks never overlap, (2) lastSentAt is
+// claimed BEFORE sending and rolled back if the send fails, (3) lastSentAt is written onto a
+// fresh read of newsletters.json so UI edits made during a send aren't clobbered.
+let SCHEDULER_BUSY = false;
+const SENDING_NOW = new Set();
+function setLastSentAt(id, value) {
+  const fresh = loadNewslettersSafe();
+  const item = fresh.find((x) => x?.id === id);
+  if (!item) return;
+  if (value === undefined || value === null) delete item.lastSentAt;
+  else item.lastSentAt = value;
+  saveNewslettersSafe(fresh);
+}
 async function schedulerTick() {
-  const list = loadNewslettersSafe();
-  if (!Array.isArray(list) || list.length === 0) return;
-  const now = nowParts();
-  for (const n of list) {
-    if (!n?.enabled || !n?.schedule) continue;
-    if (wasJustSent(n, now.ms)) continue;
-    if (isDue(n.schedule)) {
+  if (SCHEDULER_BUSY) return;
+  SCHEDULER_BUSY = true;
+  try {
+    const list = loadNewslettersSafe();
+    if (!Array.isArray(list) || list.length === 0) return;
+    const now = nowParts();
+    for (const n of list) {
+      if (!n?.enabled || !n?.schedule) continue;
+      if (SENDING_NOW.has(n.id)) continue;
+      if (wasJustSent(n, now.ms)) continue;
+      if (!isDue(n.schedule)) continue;
+      const previous = n.lastSentAt;
+      SENDING_NOW.add(n.id);
+      setLastSentAt(n.id, Date.now());            // claim first
       try {
         const sent = await sendNewsletter(n);
-        if (sent) {
-          n.lastSentAt = Date.now();
-          saveNewslettersSafe(list);
-        }
+        if (sent) console.log(`[scheduler] sent ${n.id} (${n.name || ""})`);
+        else setLastSentAt(n.id, previous);         // nothing went out - release the claim
       } catch (e) {
         console.error(`[scheduler] send failed for ${n.id}:`, e?.message || e);
+        setLastSentAt(n.id, previous);
+      } finally {
+        SENDING_NOW.delete(n.id);
       }
     }
+  } finally {
+    SCHEDULER_BUSY = false;
   }
 }
 
