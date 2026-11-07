@@ -12,6 +12,10 @@ import {
 import { Placeholder } from "../pages/Placeholder";
 import { GeneralSettings } from "../pages/settings/GeneralSettings";
 import { SystemStatus } from "../pages/system/SystemStatus";
+import { SystemTasks } from "../pages/system/SystemTasks";
+import { ConnectionsSettings } from "../pages/settings/ConnectionsSettings";
+import { EmailSettings } from "../pages/settings/EmailSettings";
+import { ImagesSettings } from "../pages/settings/ImagesSettings";
 
 export interface NavChild {
   label: string;
@@ -74,9 +78,9 @@ export const NAV: NavItem[] = [
     icon: <IconSettings size={18} />,
     children: [
       { label: "General", path: "/settings/general", element: <GeneralSettings /> },
-      { label: "Connections", path: "/settings/connections", element: soon("Connections", 2, "Plex and Tautulli.") },
-      { label: "Email", path: "/settings/email", element: soon("Email", 2, "SMTP server and sender.") },
-      { label: "Images", path: "/settings/images", element: soon("Images", 2, "Embed images or host them on Cloudinary.") },
+      { label: "Connections", path: "/settings/connections", element: <ConnectionsSettings /> },
+      { label: "Email", path: "/settings/email", element: <EmailSettings /> },
+      { label: "Images", path: "/settings/images", element: <ImagesSettings /> },
       { label: "Content", path: "/settings/content", element: soon("Content", 4, "Items per card, excluded shows, accent color.") },
     ],
   },
@@ -86,7 +90,7 @@ export const NAV: NavItem[] = [
     icon: <IconDeviceDesktopAnalytics size={18} />,
     children: [
       { label: "Status", path: "/system/status", element: <SystemStatus /> },
-      { label: "Tasks", path: "/system/tasks", element: soon("Tasks", 6, "Scheduled jobs with Run Now.") },
+      { label: "Tasks", path: "/system/tasks", element: <SystemTasks /> },
       { label: "Logs", path: "/system/logs", element: soon("Logs", 6, "Application log viewer.") },
       { label: "Backup", path: "/system/backup", element: soon("Backup", 6, "Download or restore your /config.") },
     ],

@@ -1,6 +1,7 @@
 import { Alert, Card, Center, Loader, Table, Text } from "@mantine/core";
 import { useSystemStatus } from "../../api/settings";
 import { PageToolbar } from "../../components/PageToolbar";
+import { HealthPanel } from "../../components/HealthPanel";
 
 const bytes = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
@@ -31,6 +32,7 @@ export function SystemStatus() {
   return (
     <>
       <PageToolbar title="Status" />
+      <HealthPanel />
       <Card bg="var(--nz-sidebar-bg)" maw={900}>
         <Text fw={600} size="lg" mb="sm">
           About

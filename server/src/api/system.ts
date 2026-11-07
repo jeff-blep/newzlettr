@@ -6,6 +6,8 @@ import type { SystemStatus } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { CONFIG_DIR, DB_FILE, LOG_FILE } from "../paths.js";
 import { effectiveTimezone } from "../settings.js";
+import { lastHealth, runHealthChecks } from "../health.js";
+import { listTasks, runTask } from "../tasks.js";
 
 const startedAt = new Date();
 export const VERSION = pkg.version;
@@ -37,6 +39,16 @@ export function systemRouter(db: DB): Router {
       runningInDocker: fs.existsSync("/.dockerenv"),
     };
     res.json(body);
+  });
+
+  r.get("/health", (_req, res) => res.json(lastHealth()));
+  r.post("/health", async (_req, res) => res.json(await runHealthChecks(db)));
+
+  r.get("/tasks", (_req, res) => res.json(listTasks()));
+  r.post("/tasks/:id/run", async (req, res) => {
+    const t = await runTask(req.params.id);
+    if (!t) return res.status(404).json({ error: "no such task" });
+    res.json(t);
   });
 
   return r;

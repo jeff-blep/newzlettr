@@ -14,9 +14,78 @@ export const generalSchema = z.object({
   applicationUrl: z.string().default(""),
 });
 
+const url = z.string().trim().default("");
+
+export const plexSchema = z.object({
+  url,
+  token: z.string().trim().default(""),
+  ignoreTlsErrors: z.boolean().default(false),
+});
+
+export const tautulliSchema = z.object({
+  url,
+  apiKey: z.string().trim().default(""),
+  ignoreTlsErrors: z.boolean().default(false),
+});
+
+export const smtpSchema = z.object({
+  host: z.string().trim().default(""),
+  port: z.number().int().min(1).max(65535).default(587),
+  /** ssl = implicit TLS (465), starttls = upgrade (587), none = plaintext (25). */
+  encryption: z.enum(["ssl", "starttls", "none"]).default("starttls"),
+  username: z.string().trim().default(""),
+  password: z.string().default(""),
+  fromName: z.string().trim().default("Newzlettr"),
+  fromAddress: z.string().trim().default(""),
+  ignoreTlsErrors: z.boolean().default(false),
+});
+
+export const imagesSchema = z.object({
+  /** embedded = inline CID attachments; cloudinary = hosted URLs. */
+  mode: z.enum(["embedded", "cloudinary"]).default("embedded"),
+  cloudName: z.string().trim().default(""),
+  apiKey: z.string().trim().default(""),
+  apiSecret: z.string().default(""),
+  folder: z.string().trim().default("newzlettr"),
+});
+
 export const SECTIONS = {
   general: generalSchema,
+  plex: plexSchema,
+  tautulli: tautulliSchema,
+  smtp: smtpSchema,
+  images: imagesSchema,
 } as const;
+
+/** Fields never sent to the browser in clear text. */
+export const SECRET_FIELDS: { [N in SectionName]?: string[] } = {
+  plex: ["token"],
+  tautulli: ["apiKey"],
+  smtp: ["password"],
+  images: ["apiSecret"],
+};
+export const MASK = "********";
+
+/** Section with secrets replaced by MASK (or "" when unset). */
+export function maskSection<N extends SectionName>(name: N, value: Section<N>): Section<N> {
+  const out = { ...value } as Record<string, unknown>;
+  for (const f of SECRET_FIELDS[name] ?? []) out[f] = out[f] ? MASK : "";
+  return out as Section<N>;
+}
+
+/** Drops MASK placeholders from a patch so "unchanged secret" keeps the stored value. */
+export function unmaskPatch<N extends SectionName>(name: N, patch: Partial<Section<N>>): Partial<Section<N>> {
+  const out = { ...patch } as Record<string, unknown>;
+  for (const f of SECRET_FIELDS[name] ?? []) if (out[f] === MASK) delete out[f];
+  return out as Partial<Section<N>>;
+}
+
+/** Draft values (possibly masked) merged over stored ones - used by "Test" before saving. */
+export function resolveDraft<N extends SectionName>(db: DB, name: N, draft: unknown): Section<N> {
+  const p = parsePatch(name, draft);
+  const patch = p.ok ? unmaskPatch(name, p.patch) : {};
+  return SECTIONS[name].parse({ ...getSection(db, name), ...patch }) as Section<N>;
+}
 
 export type SectionName = keyof typeof SECTIONS;
 export type Section<N extends SectionName> = z.infer<(typeof SECTIONS)[N]>;

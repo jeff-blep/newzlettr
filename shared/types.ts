@@ -42,6 +42,66 @@ export interface SystemStatus {
   runningInDocker: boolean;
 }
 
+export interface PlexSettings {
+  url: string;
+  token: string; // "********" when set
+  ignoreTlsErrors: boolean;
+}
+
+export interface TautulliSettings {
+  url: string;
+  apiKey: string; // "********" when set
+  ignoreTlsErrors: boolean;
+}
+
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  encryption: "ssl" | "starttls" | "none";
+  username: string;
+  password: string; // "********" when set
+  fromName: string;
+  fromAddress: string;
+  ignoreTlsErrors: boolean;
+}
+
+export interface ImagesSettings {
+  mode: "embedded" | "cloudinary";
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string; // "********" when set
+  folder: string;
+}
+
+export interface SettingsSections {
+  general: GeneralSettings;
+  plex: PlexSettings;
+  tautulli: TautulliSettings;
+  smtp: SmtpSettings;
+  images: ImagesSettings;
+}
+
+export interface TestResult {
+  ok: boolean;
+  message: string;
+  details?: Record<string, string | number | boolean>;
+}
+
+export type HealthLevel = "ok" | "warning" | "error";
+
+export interface HealthCheck {
+  source: "plex" | "tautulli" | "smtp" | "images" | "newsletters" | "sends";
+  level: Exclude<HealthLevel, "ok">;
+  message: string;
+  /** In-app link that fixes it, e.g. /settings/connections */
+  fixPath?: string;
+}
+
+export interface HealthResponse {
+  checkedAt: string | null;
+  checks: HealthCheck[];
+}
+
 export interface ApiError {
   error: string;
   details?: unknown;

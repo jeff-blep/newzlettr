@@ -1,9 +1,11 @@
 import { createApp } from "./app.js";
 import { purgeExpiredSessions } from "./auth/index.js";
 import { openDb } from "./db/index.js";
-import { initLogging } from "./logging.js";
+import { runHealthChecks } from "./health.js";
+import { initLogging, rotateLogsIfNeeded } from "./logging.js";
 import { CONFIG_DIR, DB_FILE, ensureDirs } from "./paths.js";
 import { effectiveTimezone, getApiKey, getSection } from "./settings.js";
+import { registerTask, stopAllTasks } from "./tasks.js";
 import { VERSION } from "./api/system.js";
 
 ensureDirs();
@@ -19,11 +21,20 @@ const server = createApp(db).listen(PORT, HOST, () => {
   log.info({ version: VERSION, port: PORT, configDir: CONFIG_DIR, timezone: effectiveTimezone(db) }, "Newzlettr started");
 });
 
-const hourly = setInterval(() => purgeExpiredSessions(db), 3_600_000);
+const MIN = 60_000;
+registerTask("health", "Check Health", 15 * MIN, async () => {
+  const h = await runHealthChecks(db);
+  return h.checks.length ? `${h.checks.length} issue(s)` : "All good";
+}, 3_000);
+registerTask("housekeeping", "Housekeeping", 60 * MIN, async () => {
+  const sessions = purgeExpiredSessions(db);
+  const rotated = rotateLogsIfNeeded();
+  return `Purged ${sessions} expired session(s)${rotated ? ", rotated log" : ""}`;
+}, 60_000);
 
 function shutdown(signal: string) {
   log.info({ signal }, "shutting down");
-  clearInterval(hourly);
+  stopAllTasks();
   server.close(() => {
     db.close();
     process.exit(0);
