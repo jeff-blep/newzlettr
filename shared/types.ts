@@ -211,3 +211,63 @@ export interface ApiError {
   error: string;
   details?: unknown;
 }
+
+/* ------------------------------- newsletters ------------------------------- */
+
+export type SendTrigger = "scheduled" | "manual" | "test";
+export type SendStatus = "running" | "sent" | "failed" | "skipped";
+
+export interface SendRecord {
+  id: number;
+  newsletterId: number | null;
+  newsletterName: string;
+  trigger: SendTrigger;
+  scheduledFor: string | null;
+  status: SendStatus;
+  recipientCount: number;
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export interface Newsletter {
+  id: number;
+  name: string;
+  subject: string;
+  templateId: number | null;
+  templateName: string | null;
+  cron: string;
+  scheduleDescription: string;
+  /** null = use Settings > General default */
+  historyDays: number | null;
+  sendAsBcc: boolean;
+  allRecipients: boolean;
+  recipientIds: number[];
+  /** Enabled recipients this newsletter would actually reach right now. */
+  audienceCount: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  nextRuns: string[];
+  lastSend: SendRecord | null;
+}
+
+export interface NewsletterInput {
+  name: string;
+  subject: string;
+  templateId: number | null;
+  cron: string;
+  historyDays: number | null;
+  sendAsBcc: boolean;
+  allRecipients: boolean;
+  recipientIds: number[];
+  enabled: boolean;
+}
+
+export interface SchedulePreview {
+  valid: boolean;
+  error?: string;
+  timezone: string;
+  next: string[];
+  description: string;
+}

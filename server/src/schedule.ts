@@ -76,3 +76,36 @@ export function slotsBetween(expr: string, timezone: string, from: Date, to: Dat
   }
   return out;
 }
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function clock(h: number, m: number): string {
+  const ap = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+function ordinal(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+  return `${n}${{ 1: "st", 2: "nd", 3: "rd" }[n % 10] ?? "th"}`;
+}
+
+/** Plain-English description for the common shapes; falls back to the raw expression. */
+export function describeCron(expr: string): string {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return expr;
+  const [mi, h, dom, mon, dow] = parts as [string, string, string, string, string];
+  const isNum = (s: string) => /^\d+$/.test(s);
+  if (!isNum(mi)) return `Custom: ${expr}`;
+  if (h === "*" && dom === "*" && mon === "*" && dow === "*") return `Every hour at :${mi.padStart(2, "0")}`;
+  if (!isNum(h)) return `Custom: ${expr}`;
+  const at = clock(Number(h), Number(mi));
+  if (dom === "*" && mon === "*" && dow === "*") return `Every day at ${at}`;
+  if (dom === "*" && mon === "*" && /^[0-7](,[0-7])*$/.test(dow)) {
+    const days = dow.split(",").map((d) => DAY_NAMES[Number(d) % 7]!);
+    if (days.length === 5 && !days.includes("Saturday") && !days.includes("Sunday")) return `Weekdays at ${at}`;
+    return `Every ${days.join(", ")} at ${at}`;
+  }
+  if (isNum(dom) && mon === "*" && dow === "*") return `Monthly on the ${ordinal(Number(dom))} at ${at}`;
+  return `Custom: ${expr}`;
+}

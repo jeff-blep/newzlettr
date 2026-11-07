@@ -62,7 +62,28 @@ export function setLogLevel(level: string): void {
   log.level = level;
 }
 
-/** Child logger for a subsystem, e.g. logger("scheduler"). */
+const children = new Map<string, { root: pino.Logger; child: pino.Logger }>();
+
+/**
+ * Child logger for a subsystem, e.g. logger("scheduler"). Modules call this at import time,
+ * before initLogging() swaps in the file-backed root, so the child is resolved lazily on each
+ * use (and follows log-level changes) instead of being bound to the bootstrap console logger.
+ */
 export function logger(component: string): pino.Logger {
-  return log.child({ component });
+  const current = (): pino.Logger => {
+    let c = children.get(component);
+    if (!c || c.root !== log) {
+      c = { root: log, child: log.child({ component }) };
+      children.set(component, c);
+    }
+    if (c.child.level !== log.level) c.child.level = log.level;
+    return c.child;
+  };
+  return new Proxy({} as pino.Logger, {
+    get(_t, prop) {
+      const target = current();
+      const v = (target as unknown as Record<PropertyKey, unknown>)[prop];
+      return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+    },
+  });
 }

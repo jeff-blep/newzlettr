@@ -9,7 +9,6 @@ import {
   IconUsers,
   IconDeviceDesktopAnalytics,
 } from "@tabler/icons-react";
-import { Placeholder } from "../pages/Placeholder";
 import { GeneralSettings } from "../pages/settings/GeneralSettings";
 import { SystemStatus } from "../pages/system/SystemStatus";
 import { SystemTasks } from "../pages/system/SystemTasks";
@@ -22,6 +21,10 @@ import { StatsPage } from "../pages/StatsPage";
 import { TemplatesPage } from "../pages/templates/TemplatesPage";
 import { TemplateEditorPage } from "../pages/templates/TemplateEditorPage";
 import { ContentSettings } from "../pages/settings/ContentSettings";
+import { NewslettersPage } from "../pages/newsletters/NewslettersPage";
+import { ActivityPage } from "../pages/ActivityPage";
+import { SystemLogs } from "../pages/system/SystemLogs";
+import { SystemBackup } from "../pages/system/SystemBackup";
 
 export interface NavChild {
   label: string;
@@ -38,17 +41,13 @@ export interface NavItem {
   routes?: { path: string; element: ReactNode }[];
 }
 
-const soon = (title: string, milestone: number, what: string) => (
-  <Placeholder title={title} milestone={milestone} description={what} />
-);
-
 /** Single source of truth for the sidebar and the routes. */
 export const NAV: NavItem[] = [
   {
     label: "Newsletters",
     path: "/newsletters",
     icon: <IconMail size={18} />,
-    element: soon("Newsletters", 5, "Scheduled newsletters, next run, last send, send now."),
+    element: <NewslettersPage />,
   },
   {
     label: "Templates",
@@ -79,7 +78,7 @@ export const NAV: NavItem[] = [
     label: "Activity",
     path: "/activity",
     icon: <IconActivity size={18} />,
-    element: soon("Activity", 5, "Every send: when, to how many, and whether it worked."),
+    element: <ActivityPage />,
   },
   {
     label: "Settings",
@@ -100,8 +99,8 @@ export const NAV: NavItem[] = [
     children: [
       { label: "Status", path: "/system/status", element: <SystemStatus /> },
       { label: "Tasks", path: "/system/tasks", element: <SystemTasks /> },
-      { label: "Logs", path: "/system/logs", element: soon("Logs", 6, "Application log viewer.") },
-      { label: "Backup", path: "/system/backup", element: soon("Backup", 6, "Download or restore your /config.") },
+      { label: "Logs", path: "/system/logs", element: <SystemLogs /> },
+      { label: "Backup", path: "/system/backup", element: <SystemBackup /> },
     ],
   },
 ];

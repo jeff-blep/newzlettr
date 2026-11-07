@@ -26,7 +26,7 @@ const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite
 const obj = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
 const arr = (v: unknown) => (Array.isArray(v) ? v : []);
 
-/** "Kunkflix Newzlettr <me@x.com>" -> { name, address } */
+/** "My Newsletter <me@example.com>" -> { name, address } */
 export function parseFrom(raw: string): { name: string; address: string } {
   const m = raw.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
   return m ? { name: m[1]!.trim(), address: m[2]!.trim() } : { name: "", address: raw.trim() };
