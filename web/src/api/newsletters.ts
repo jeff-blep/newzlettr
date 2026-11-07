@@ -28,10 +28,13 @@ export function useNewsletterMutations() {
 
 export const previewNewsletter = (id: number) => get<RenderResult>(`/api/newsletters/${id}/preview`);
 
-export function useActivity(status: string | null, page: number, pageSize = 25) {
+export function useActivity(status: string | null, page: number, sort: { key: string; dir: string }, pageSize = 25) {
   return useQuery({
-    queryKey: ["activity", status, page],
-    queryFn: () => get<{ total: number; records: SendRecord[] }>(`/api/activity?limit=${pageSize}&offset=${page * pageSize}${status ? `&status=${status}` : ""}`),
+    queryKey: ["activity", status, page, sort.key, sort.dir],
+    queryFn: () =>
+      get<{ total: number; records: SendRecord[] }>(
+        `/api/activity?limit=${pageSize}&offset=${page * pageSize}&sort=${sort.key}&dir=${sort.dir}${status ? `&status=${status}` : ""}`,
+      ),
     placeholderData: keepPreviousData,
     refetchInterval: 15_000,
   });

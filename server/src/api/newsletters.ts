@@ -197,7 +197,17 @@ export function activityRouter(db: DB): Router {
     const status = typeof req.query.status === "string" && ["sent", "failed", "skipped", "running"].includes(req.query.status) ? req.query.status : null;
     const where = status ? "WHERE status = ?" : "";
     const args = status ? [status] : [];
-    const rows = db.prepare(`SELECT * FROM sends ${where} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...args, limit, offset) as Record<string, unknown>[];
+    // Whitelisted sort columns only - the value is interpolated into SQL.
+    const SORTS: Record<string, string> = {
+      when: "started_at",
+      newsletter: "lower(newsletter_name)",
+      type: "trigger",
+      status: "status",
+      recipients: "recipient_count",
+    };
+    const sortCol = SORTS[String(req.query.sort)] ?? SORTS.when!;
+    const dir = req.query.dir === "asc" ? "ASC" : "DESC";
+    const rows = db.prepare(`SELECT * FROM sends ${where} ORDER BY ${sortCol} ${dir}, id ${dir} LIMIT ? OFFSET ?`).all(...args, limit, offset) as Record<string, unknown>[];
     const total = (db.prepare(`SELECT COUNT(*) AS n FROM sends ${where}`).get(...args) as { n: number }).n;
     res.json({ total, records: rows.map(toSendRecord) });
   });

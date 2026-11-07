@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Badge, Card, Center, Group, Loader, Pagination, SegmentedControl, Stack, Table, Text, Tooltip } from "@mantine/core";
 import { useActivity } from "../api/newsletters";
 import { PageToolbar } from "../components/PageToolbar";
+import { SortTh, useSortState } from "../components/sortable";
 import { SendStatusBadge } from "./newsletters/NewslettersPage";
 import { relTime } from "./system/SystemTasks";
 
@@ -11,7 +12,12 @@ const PAGE = 25;
 export function ActivityPage() {
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(0);
-  const { data, isPending, error } = useActivity(status === "all" ? null : status, page, PAGE);
+  const { sort, toggle } = useSortState("activity", ["when", "newsletter", "type", "status", "recipients"], { key: "when", dir: "desc" });
+  const onSort = (k: typeof sort.key) => {
+    toggle(k);
+    setPage(0);
+  };
+  const { data, isPending, error } = useActivity(status === "all" ? null : status, page, sort, PAGE);
 
   return (
     <>
@@ -50,11 +56,11 @@ export function ActivityPage() {
               <Table verticalSpacing="sm" highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>When</Table.Th>
-                    <Table.Th>Newsletter</Table.Th>
-                    <Table.Th>Type</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Recipients</Table.Th>
+                    <SortTh label="When" column="when" sort={sort} onSort={onSort} />
+                    <SortTh label="Newsletter" column="newsletter" sort={sort} onSort={onSort} />
+                    <SortTh label="Type" column="type" sort={sort} onSort={onSort} />
+                    <SortTh label="Status" column="status" sort={sort} onSort={onSort} />
+                    <SortTh label="Recipients" column="recipients" sort={sort} onSort={onSort} />
                     <Table.Th>Details</Table.Th>
                   </Table.Tr>
                 </Table.Thead>

@@ -59,3 +59,26 @@ describe("system: backups, restore validation, import", () => {
     return g.body.apiKey;
   }
 });
+
+describe("activity sorting", () => {
+  it("sorts by whitelisted columns and ignores anything else", async () => {
+    const t = await startTestServer();
+    try {
+      const c = client(t.url);
+      await c.req("POST", "/api/auth/setup", { username: "admin", password: "longenough1" });
+      const ins = t.db.prepare("INSERT INTO sends(newsletter_name, trigger, status, recipient_count, started_at) VALUES(?, 'manual', 'sent', ?, ?)");
+      ins.run("Bravo", 5, "2026-01-02T00:00:00.000Z");
+      ins.run("alpha", 50, "2026-01-01T00:00:00.000Z");
+      ins.run("Charlie", 1, "2026-01-03T00:00:00.000Z");
+      const names = async (q: string) => ((await c.req("GET", `/api/activity?${q}`)).body.records as { newsletterName: string }[]).map((r) => r.newsletterName);
+      expect(await names("sort=newsletter&dir=asc")).toEqual(["alpha", "Bravo", "Charlie"]);
+      expect(await names("sort=newsletter&dir=desc")).toEqual(["Charlie", "Bravo", "alpha"]);
+      expect(await names("sort=recipients&dir=desc")).toEqual(["alpha", "Bravo", "Charlie"]);
+      expect(await names("")).toEqual(["Charlie", "Bravo", "alpha"]); // default: newest first
+      expect(await names("sort=id;DROP%20TABLE%20sends&dir=asc")).toEqual(["alpha", "Bravo", "Charlie"]); // falls back to time
+      expect((t.db.prepare("SELECT COUNT(*) AS n FROM sends").get() as { n: number }).n).toBe(3);
+    } finally {
+      await t.close();
+    }
+  });
+});

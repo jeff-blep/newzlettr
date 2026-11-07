@@ -5,6 +5,7 @@ import type { Newsletter, SendRecord } from "../../../../shared/types";
 import { useNewsletterMutations, useNewsletters } from "../../api/newsletters";
 import { notifyError, notifyOk } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
+import { SortTh, useSortedRows } from "../../components/sortable";
 import { relTime } from "../system/SystemTasks";
 import { NewsletterModal } from "./NewsletterModal";
 import { PreviewModal, TestModal } from "./SendModals";
@@ -29,6 +30,19 @@ export function NewslettersPage() {
   const [sending, setSending] = useState<Newsletter | null>(null);
   const [testing, setTesting] = useState<Newsletter | null>(null);
   const [previewing, setPreviewing] = useState<Newsletter | null>(null);
+  const { rows, sort, toggle } = useSortedRows(
+    "newsletters",
+    data,
+    {
+      enabled: (n: Newsletter) => n.enabled,
+      name: (n: Newsletter) => n.name,
+      schedule: (n: Newsletter) => n.scheduleDescription,
+      next: (n: Newsletter) => (n.nextRuns[0] ? Date.parse(n.nextRuns[0]) : null),
+      last: (n: Newsletter) => (n.lastSend ? Date.parse(n.lastSend.startedAt) : null),
+      audience: (n: Newsletter) => n.audienceCount,
+    },
+    { key: "name", dir: "asc" },
+  );
 
   if (isPending) return <Center p="xl"><Loader /></Center>;
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
@@ -60,17 +74,17 @@ export function NewslettersPage() {
           <Table verticalSpacing="sm" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th w={70}>Enabled</Table.Th>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Schedule</Table.Th>
-                <Table.Th>Next send</Table.Th>
-                <Table.Th>Last send</Table.Th>
-                <Table.Th>Audience</Table.Th>
+                <SortTh label="Enabled" column="enabled" sort={sort} onSort={toggle} w={100} />
+                <SortTh label="Name" column="name" sort={sort} onSort={toggle} />
+                <SortTh label="Schedule" column="schedule" sort={sort} onSort={toggle} />
+                <SortTh label="Next send" column="next" sort={sort} onSort={toggle} />
+                <SortTh label="Last send" column="last" sort={sort} onSort={toggle} />
+                <SortTh label="Audience" column="audience" sort={sort} onSort={toggle} />
                 <Table.Th w={90} />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {data.map((n) => (
+              {rows.map((n) => (
                 <Table.Tr key={n.id} opacity={n.enabled ? 1 : 0.65}>
                   <Table.Td>
                     <Switch

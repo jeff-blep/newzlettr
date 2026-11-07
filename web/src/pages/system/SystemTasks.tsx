@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "../../api/client";
 import { notifyError } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
+import { SortTh, useSortedRows } from "../../components/sortable";
 
 interface TaskInfo {
   id: string;
@@ -36,6 +37,18 @@ export function SystemTasks() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["system"] }),
     onError: (e) => notifyError(e, "Task failed to start"),
   });
+  const { rows, sort, toggle } = useSortedRows(
+    "tasks",
+    data,
+    {
+      name: (t: TaskInfo) => t.name,
+      interval: (t: TaskInfo) => t.intervalMs,
+      last: (t: TaskInfo) => (t.lastStartedAt ? Date.parse(t.lastStartedAt) : null),
+      result: (t: TaskInfo) => (t.running ? "running" : t.lastResult),
+      next: (t: TaskInfo) => (t.nextRunAt ? Date.parse(t.nextRunAt) : null),
+    },
+    { key: "name", dir: "asc" },
+  );
 
   if (isPending) return <Center p="xl"><Loader /></Center>;
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
@@ -47,16 +60,16 @@ export function SystemTasks() {
         <Table verticalSpacing="sm" highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Interval</Table.Th>
-              <Table.Th>Last Execution</Table.Th>
-              <Table.Th>Last Result</Table.Th>
-              <Table.Th>Next Execution</Table.Th>
+              <SortTh label="Name" column="name" sort={sort} onSort={toggle} />
+              <SortTh label="Interval" column="interval" sort={sort} onSort={toggle} />
+              <SortTh label="Last Execution" column="last" sort={sort} onSort={toggle} />
+              <SortTh label="Last Result" column="result" sort={sort} onSort={toggle} />
+              <SortTh label="Next Execution" column="next" sort={sort} onSort={toggle} />
               <Table.Th w={60} />
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {data.map((t) => (
+            {rows.map((t) => (
               <Table.Tr key={t.id}>
                 <Table.Td>{t.name}</Table.Td>
                 <Table.Td>{every(t.intervalMs)}</Table.Td>

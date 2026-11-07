@@ -22,6 +22,7 @@ import type { PlexAccessStatus, Recipient } from "../../../shared/types";
 import { useRecipientMutations, useRecipients } from "../api/media";
 import { notifyError, notifyOk } from "../components/notify";
 import { PageToolbar } from "../components/PageToolbar";
+import { SortTh, useSortedRows } from "../components/sortable";
 
 const SOURCE: Record<Recipient["source"], { label: string; color: string }> = {
   manual: { label: "Manual", color: "gray" },
@@ -62,12 +63,24 @@ export function RecipientsPage() {
   const [editing, setEditing] = useState<Recipient | "new" | null>(null);
   const [deleting, setDeleting] = useState<Recipient | null>(null);
 
-  const rows = useMemo(() => {
+  const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
     return (data ?? [])
       .filter((r) => !f || r.name.toLowerCase().includes(f) || r.email.includes(f))
       .filter((r) => access === "all" || accessGroup(r) === access);
   }, [data, filter, access]);
+  const { rows, sort, toggle } = useSortedRows(
+    "recipients",
+    filtered,
+    {
+      enabled: (r: Recipient) => r.enabled,
+      name: (r: Recipient) => r.name,
+      email: (r: Recipient) => r.email,
+      access: (r: Recipient) => accessSortKey(r),
+      source: (r: Recipient) => SOURCE[r.source].label,
+    },
+    { key: "name", dir: "asc" },
+  );
 
   if (isPending) return <Center p="xl"><Loader /></Center>;
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
@@ -170,11 +183,11 @@ export function RecipientsPage() {
           <Table verticalSpacing="xs" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th w={70}>Enabled</Table.Th>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Plex access</Table.Th>
-                <Table.Th>Source</Table.Th>
+                <SortTh label="Enabled" column="enabled" sort={sort} onSort={toggle} w={100} />
+                <SortTh label="Name" column="name" sort={sort} onSort={toggle} />
+                <SortTh label="Email" column="email" sort={sort} onSort={toggle} />
+                <SortTh label="Plex access" column="access" sort={sort} onSort={toggle} />
+                <SortTh label="Source" column="source" sort={sort} onSort={toggle} />
                 <Table.Th w={90} />
               </Table.Tr>
             </Table.Thead>
@@ -312,4 +325,11 @@ function accessGroup(r: Recipient): AccessFilter | "unknown" {
   if (!st) return "unknown";
   if (st === "invited") return "no_access";
   return st;
+}
+
+/** Sort order for the access column: with libraries (by library list), no libraries, invited, no access; unchecked last. */
+function accessSortKey(r: Recipient): string | null {
+  const a = r.plexAccess;
+  if (!a) return null;
+  return { libraries: `1 ${a.libraries.join(" ")}`, no_libraries: "2", invited: "3", no_access: "4" }[a.status];
 }

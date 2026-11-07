@@ -6,6 +6,7 @@ import type { Template } from "../../../../shared/types";
 import { useTemplateMutations, useTemplates } from "../../api/templates";
 import { notifyError, notifyOk } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
+import { SortTh, useSortedRows } from "../../components/sortable";
 import { relTime } from "../system/SystemTasks";
 
 export function TemplatesPage() {
@@ -13,6 +14,16 @@ export function TemplatesPage() {
   const m = useTemplateMutations();
   const nav = useNavigate();
   const [deleting, setDeleting] = useState<Template | null>(null);
+  const { rows, sort, toggle } = useSortedRows(
+    "templates",
+    data,
+    {
+      name: (t: Template) => t.name,
+      usedBy: (t: Template) => t.usedBy.map((n) => n.name).join(", "),
+      updated: (t: Template) => Date.parse(t.updatedAt),
+    },
+    { key: "updated", dir: "desc" },
+  );
 
   if (isPending) return <Center p="xl"><Loader /></Center>;
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
@@ -41,14 +52,14 @@ export function TemplatesPage() {
           <Table verticalSpacing="sm" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Used by</Table.Th>
-                <Table.Th>Last edited</Table.Th>
+                <SortTh label="Name" column="name" sort={sort} onSort={toggle} />
+                <SortTh label="Used by" column="usedBy" sort={sort} onSort={toggle} />
+                <SortTh label="Last edited" column="updated" sort={sort} onSort={toggle} />
                 <Table.Th w={120} />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {data.map((t) => (
+              {rows.map((t) => (
                 <Table.Tr key={t.id}>
                   <Table.Td>
                     <Text component={Link} to={`/templates/${t.id}`} fw={500} c="gray.1" style={{ textDecoration: "none" }}>

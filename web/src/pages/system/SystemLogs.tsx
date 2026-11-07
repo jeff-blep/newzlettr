@@ -5,6 +5,7 @@ import { IconDownload, IconRefresh, IconSearch } from "@tabler/icons-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { get } from "../../api/client";
 import { PageToolbar } from "../../components/PageToolbar";
+import { SortTh, useSortedRows } from "../../components/sortable";
 
 interface LogEntry {
   time: string;
@@ -14,6 +15,7 @@ interface LogEntry {
   extra?: Record<string, unknown>;
 }
 
+const RANK: Record<LogEntry["level"], number> = { trace: 0, debug: 1, info: 2, warn: 3, error: 4, fatal: 5 };
 const COLOR: Record<LogEntry["level"], string> = { trace: "gray", debug: "gray", info: "blue", warn: "yellow", error: "red", fatal: "red" };
 
 export function SystemLogs() {
@@ -27,6 +29,17 @@ export function SystemLogs() {
     placeholderData: keepPreviousData,
     refetchInterval: 10_000,
   });
+  const sorted = useSortedRows(
+    "logs",
+    data,
+    {
+      time: (e: LogEntry) => e.time,
+      level: (e: LogEntry) => RANK[e.level],
+      component: (e: LogEntry) => e.component ?? "app",
+      message: (e: LogEntry) => e.msg,
+    },
+    { key: "time", dir: "desc" },
+  );
 
   return (
     <>
@@ -59,7 +72,7 @@ export function SystemLogs() {
         />
         <TextInput leftSection={<IconSearch size={16} />} placeholder="Search" value={q} onChange={(e) => setQ(e.currentTarget.value)} w={300} />
         <Text size="xs" c="dimmed">
-          Newest first · last 500 matching entries. Change verbosity in Settings → General.
+          Last 500 matching entries. Change verbosity in Settings → General.
         </Text>
       </Group>
       {isPending ? (
@@ -78,14 +91,14 @@ export function SystemLogs() {
             <Table verticalSpacing={6} highlightOnHover fz="sm">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th w={170}>Time</Table.Th>
-                  <Table.Th w={80}>Level</Table.Th>
-                  <Table.Th w={120}>Component</Table.Th>
-                  <Table.Th>Message</Table.Th>
+                  <SortTh label="Time" column="time" sort={sorted.sort} onSort={sorted.toggle} w={190} />
+                  <SortTh label="Level" column="level" sort={sorted.sort} onSort={sorted.toggle} w={100} />
+                  <SortTh label="Component" column="component" sort={sorted.sort} onSort={sorted.toggle} w={140} />
+                  <SortTh label="Message" column="message" sort={sorted.sort} onSort={sorted.toggle} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {data.map((e, i) => (
+                {sorted.rows.map((e, i) => (
                   <Table.Tr key={`${e.time}-${i}`} onClick={() => setOpen(open === i ? null : i)} style={{ cursor: e.extra ? "pointer" : undefined }}>
                     <Table.Td>
                       <Tooltip label={e.time}>

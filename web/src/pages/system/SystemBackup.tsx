@@ -6,6 +6,7 @@ import { api, del, get, post } from "../../api/client";
 import { SettingsSection } from "../../components/FormRow";
 import { notifyError, notifyOk } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
+import { SortTh, useSortedRows } from "../../components/sortable";
 import { relTime } from "./SystemTasks";
 
 interface BackupInfo {
@@ -33,6 +34,17 @@ export function SystemBackup() {
   const remove = useMutation({ mutationFn: (name: string) => del(`/api/system/backups/${encodeURIComponent(name)}`), onSuccess: refresh });
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const backups = useSortedRows(
+    "backups",
+    q.data?.backups,
+    {
+      name: (b: BackupInfo) => b.name,
+      kind: (b: BackupInfo) => b.kind,
+      size: (b: BackupInfo) => b.sizeBytes,
+      created: (b: BackupInfo) => Date.parse(b.createdAt),
+    },
+    { key: "created", dir: "desc" },
+  );
 
   return (
     <>
@@ -71,15 +83,15 @@ export function SystemBackup() {
             <Table verticalSpacing="xs">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Type</Table.Th>
-                  <Table.Th>Size</Table.Th>
-                  <Table.Th>Created</Table.Th>
+                  <SortTh label="Name" column="name" sort={backups.sort} onSort={backups.toggle} />
+                  <SortTh label="Type" column="kind" sort={backups.sort} onSort={backups.toggle} />
+                  <SortTh label="Size" column="size" sort={backups.sort} onSort={backups.toggle} />
+                  <SortTh label="Created" column="created" sort={backups.sort} onSort={backups.toggle} />
                   <Table.Th w={90} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {q.data.backups.map((b) => (
+                {backups.rows.map((b) => (
                   <Table.Tr key={b.name}>
                     <Table.Td>
                       <Text size="sm" ff="monospace">
