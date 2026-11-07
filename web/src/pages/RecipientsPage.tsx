@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActionIcon,
   Alert,
@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Center,
+  Checkbox,
   Group,
   Loader,
   Modal,
@@ -17,7 +18,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { IconCloudDownload, IconPencil, IconPlus, IconRefresh, IconSearch, IconTrash } from "@tabler/icons-react";
+import { IconCloudDownload, IconPencil, IconPlayerPause, IconPlayerPlay, IconPlus, IconRefresh, IconSearch, IconTrash, IconX } from "@tabler/icons-react";
 import type { PlexAccessStatus, Recipient } from "../../../shared/types";
 import { useRecipientMutations, useRecipients } from "../api/media";
 import { notifyError, notifyOk } from "../components/notify";
@@ -62,6 +63,19 @@ export function RecipientsPage() {
   const [access, setAccess] = useState<AccessFilter>("all");
   const [editing, setEditing] = useState<Recipient | "new" | null>(null);
   const [deleting, setDeleting] = useState<Recipient | null>(null);
+  // Selection is by id and survives switching tabs / searching, so it can be built up across lists.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkDelete, setBulkDelete] = useState(false);
+
+  // Drop ids that no longer exist (deleted here or elsewhere).
+  useEffect(() => {
+    if (!data) return;
+    const ids = new Set(data.map((r) => r.id));
+    setSelected((s) => {
+      const next = new Set([...s].filter((id) => ids.has(id)));
+      return next.size === s.size ? s : next;
+    });
+  }, [data]);
 
   const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -86,6 +100,39 @@ export function RecipientsPage() {
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
   const enabled = data.filter((r) => r.enabled).length;
   const count = (g: AccessFilter) => data.filter((r) => accessGroup(r) === g).length;
+  const visibleIds = rows.map((r) => r.id);
+  const visibleSelected = visibleIds.filter((id) => selected.has(id)).length;
+  const hiddenSelected = selected.size - visibleSelected;
+  const allVisible = visibleIds.length > 0 && visibleSelected === visibleIds.length;
+  const toggleOne = (id: number) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const toggleVisible = () =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (allVisible) visibleIds.forEach((id) => n.delete(id));
+      else visibleIds.forEach((id) => n.add(id));
+      return n;
+    });
+  const runBulk = (action: "enable" | "disable" | "delete") =>
+    m.bulk.mutate(
+      { action, ids: [...selected] },
+      {
+        onSuccess: (r) => {
+          const verb = { enable: "Enabled", disable: "Disabled", delete: "Deleted" }[action];
+          notifyOk(`${verb} ${r.changed} recipient${r.changed === 1 ? "" : "s"}`, verb);
+          if (action === "delete") {
+            setSelected(new Set());
+            setBulkDelete(false);
+          }
+        },
+        onError: (e) => notifyError(e),
+      },
+    );
 
   return (
     <>
@@ -169,6 +216,42 @@ export function RecipientsPage() {
         </Text>
       </Group>
 
+      {selected.size > 0 && (
+        <Card bg="rgba(124, 92, 255, 0.10)" withBorder mb="sm" py={8} px="md" style={{ borderColor: "var(--mantine-color-newz-7)" }}>
+          <Group justify="space-between" wrap="wrap" gap="xs">
+            <Group gap="xs">
+              <Text size="sm" fw={600}>
+                {selected.size} selected
+              </Text>
+              {hiddenSelected > 0 && (
+                <Text size="xs" c="dimmed">
+                  ({hiddenSelected} not shown in this view)
+                </Text>
+              )}
+              {!allVisible && visibleIds.length > 0 && (
+                <Button size="compact-xs" variant="subtle" onClick={toggleVisible}>
+                  Select all {visibleIds.length} shown
+                </Button>
+              )}
+            </Group>
+            <Group gap="xs">
+              <Button size="xs" variant="default" leftSection={<IconPlayerPlay size={14} />} loading={m.bulk.isPending && m.bulk.variables?.action === "enable"} onClick={() => runBulk("enable")}>
+                Enable
+              </Button>
+              <Button size="xs" variant="default" leftSection={<IconPlayerPause size={14} />} loading={m.bulk.isPending && m.bulk.variables?.action === "disable"} onClick={() => runBulk("disable")}>
+                Disable
+              </Button>
+              <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={14} />} onClick={() => setBulkDelete(true)}>
+                Delete
+              </Button>
+              <Button size="xs" variant="subtle" color="gray" leftSection={<IconX size={14} />} onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </Group>
+          </Group>
+        </Card>
+      )}
+
       <Card bg="var(--nz-sidebar-bg)" p={0}>
         {data.length === 0 ? (
           <Center p="xl">
@@ -183,6 +266,15 @@ export function RecipientsPage() {
           <Table verticalSpacing="xs" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
+                <Table.Th w={44}>
+                  <Checkbox
+                    aria-label={allVisible ? "Unselect everyone shown" : "Select everyone shown"}
+                    checked={allVisible}
+                    indeterminate={visibleSelected > 0 && !allVisible}
+                    disabled={visibleIds.length === 0}
+                    onChange={toggleVisible}
+                  />
+                </Table.Th>
                 <SortTh label="Enabled" column="enabled" sort={sort} onSort={toggle} w={100} />
                 <SortTh label="Name" column="name" sort={sort} onSort={toggle} />
                 <SortTh label="Email" column="email" sort={sort} onSort={toggle} />
@@ -193,8 +285,11 @@ export function RecipientsPage() {
             </Table.Thead>
             <Table.Tbody>
               {rows.map((r) => (
-                <Table.Tr key={r.id} opacity={r.enabled ? 1 : 0.55}>
+                <Table.Tr key={r.id} bg={selected.has(r.id) ? "rgba(124, 92, 255, 0.07)" : undefined}>
                   <Table.Td>
+                    <Checkbox aria-label={`Select ${r.email}`} checked={selected.has(r.id)} onChange={() => toggleOne(r.id)} />
+                  </Table.Td>
+                  <Table.Td opacity={r.enabled ? 1 : 0.55}>
                     <Switch
                       checked={r.enabled}
                       onChange={(e) => m.update.mutate({ id: r.id, enabled: e.currentTarget.checked }, { onError: (err) => notifyError(err) })}
@@ -229,7 +324,7 @@ export function RecipientsPage() {
               ))}
               {rows.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={7}>
                     <Text c="dimmed" ta="center" size="sm" p="md">
                       Nobody matches these filters.
                     </Text>
@@ -242,6 +337,21 @@ export function RecipientsPage() {
       </Card>
 
       {editing && <RecipientModal recipient={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+
+      <Modal opened={bulkDelete} onClose={() => setBulkDelete(false)} title={`Delete ${selected.size} recipient${selected.size === 1 ? "" : "s"}?`} centered>
+        <Text size="sm">
+          This removes them from Newzlettr and from any newsletters that list them by name.
+          {hiddenSelected > 0 ? ` ${hiddenSelected} of them aren't shown in the current view.` : ""} To stop emailing people but keep them on file, use Disable instead.
+        </Text>
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" onClick={() => setBulkDelete(false)}>
+            Cancel
+          </Button>
+          <Button color="red" loading={m.bulk.isPending} onClick={() => runBulk("delete")}>
+            Delete {selected.size}
+          </Button>
+        </Group>
+      </Modal>
 
       <Modal opened={!!deleting} onClose={() => setDeleting(null)} title="Delete recipient?" centered>
         <Text size="sm">

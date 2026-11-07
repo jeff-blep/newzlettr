@@ -40,3 +40,29 @@ describe("recipients API", () => {
     }
   });
 });
+
+describe("recipients bulk", () => {
+  it("enables, disables and deletes many at once and validates input", async () => {
+    const t = await startTestServer();
+    try {
+      const c = client(t.url);
+      await c.req("POST", "/api/auth/setup", { username: "admin", password: "longenough1" });
+      const ids: number[] = [];
+      for (const e of ["a@example.com", "b@example.com", "c@example.com"]) ids.push((await c.req("POST", "/api/recipients", { email: e })).body.id);
+
+      expect((await c.req("POST", "/api/recipients/bulk", { action: "disable", ids: [ids[0], ids[1], 99999] })).body).toEqual({ action: "disable", changed: 2 });
+      let list = (await c.req("GET", "/api/recipients")).body as { email: string; enabled: boolean }[];
+      expect(list.map((r) => [r.email, r.enabled])).toEqual([["a@example.com", false], ["b@example.com", false], ["c@example.com", true]]);
+
+      expect((await c.req("POST", "/api/recipients/bulk", { action: "enable", ids })).body.changed).toBe(3);
+      expect((await c.req("POST", "/api/recipients/bulk", { action: "delete", ids: [ids[2], ids[2]] })).body.changed).toBe(1);
+      list = (await c.req("GET", "/api/recipients")).body;
+      expect(list).toHaveLength(2);
+
+      expect((await c.req("POST", "/api/recipients/bulk", { action: "nuke", ids })).status).toBe(400);
+      expect((await c.req("POST", "/api/recipients/bulk", { action: "delete", ids: [] })).status).toBe(400);
+    } finally {
+      await t.close();
+    }
+  });
+});

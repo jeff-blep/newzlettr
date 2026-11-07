@@ -94,6 +94,26 @@ export function recipientsRouter(db: DB): Router {
     res.json(one(id));
   });
 
+  /** Enable / disable / delete many recipients at once (all-or-nothing). */
+  r.post("/bulk", (req, res) => {
+    const p = z
+      .object({ action: z.enum(["enable", "disable", "delete"]), ids: z.array(z.number().int().positive()).min(1).max(10_000) })
+      .safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message ?? "invalid" });
+    const { action, ids } = p.data;
+    const changed = tx(db, () => {
+      const stmt =
+        action === "delete"
+          ? db.prepare("DELETE FROM recipients WHERE id = ?")
+          : db.prepare("UPDATE recipients SET enabled = ? WHERE id = ?");
+      let n = 0;
+      for (const id of new Set(ids)) n += Number((action === "delete" ? stmt.run(id) : stmt.run(action === "enable" ? 1 : 0, id)).changes);
+      return n;
+    });
+    log.info({ action, requested: ids.length, changed }, "bulk recipient change");
+    res.json({ action, changed });
+  });
+
   r.delete("/:id", (req, res) => {
     const changes = Number(db.prepare("DELETE FROM recipients WHERE id = ?").run(Number(req.params.id)).changes);
     if (!changes) return res.status(404).json({ error: "not found" });
