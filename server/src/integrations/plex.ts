@@ -1,3 +1,4 @@
+import { XMLParser } from "fast-xml-parser";
 import type { Section } from "../settings.js";
 import { HttpError, httpFetch, httpJson, normalizeBaseUrl } from "./http.js";
 
@@ -24,6 +25,16 @@ export interface PlexItem {
   audienceRating?: number;
   Genre?: { tag: string }[];
   librarySectionTitle?: string;
+}
+
+export interface PlexSharedUser {
+  id: string;
+  username: string;
+  title: string;
+  email: string;
+  home: boolean;
+  /** Invited but hasn't accepted yet. */
+  pending: boolean;
 }
 
 export interface LibraryTotals {
@@ -95,6 +106,21 @@ export class PlexClient {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * People you've shared this server with (plex.tv "api/users"), limited to those who have
+   * accepted access to THIS server (matched by machine id). Home/managed users without an
+   * email are returned with email "" so the caller can report them.
+   */
+  async sharedUsers(machineIdentifier: string): Promise<PlexSharedUser[]> {
+    const res = await httpFetch("https://plex.tv/api/users", {
+      headers: { "X-Plex-Token": this.cfg.token, "X-Plex-Client-Identifier": "newzlettr", Accept: "application/xml" },
+      timeoutMs: 15_000,
+    });
+    if (res.status === 401) throw new HttpError("plex.tv rejected the token — use the server owner's Plex token", 401);
+    if (!res.ok) throw new HttpError(`plex.tv returned ${res.status}`, res.status);
+    return parseSharedUsers(await res.text(), machineIdentifier);
   }
 
   async sections(): Promise<{ key: string; title: string; type: string }[]> {
@@ -171,4 +197,25 @@ export class PlexClient {
 /** Link that opens an item in Plex Web for any user with access. */
 export function plexWebLink(machineIdentifier: string, ratingKey: string): string {
   return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
+}
+
+/** Parses plex.tv api/users XML; keeps only users with access to `machineIdentifier`. */
+export function parseSharedUsers(xmlText: string, machineIdentifier: string): PlexSharedUser[] {
+  const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", isArray: (name) => name === "User" || name === "Server" }).parse(xmlText) as {
+    MediaContainer?: { User?: (Record<string, string> & { Server?: Record<string, string>[] })[] };
+  };
+  const out: PlexSharedUser[] = [];
+  for (const u of xml.MediaContainer?.User ?? []) {
+    const server = (u.Server ?? []).find((s) => s.machineIdentifier === machineIdentifier);
+    if (!server) continue;
+    out.push({
+      id: String(u.id ?? ""),
+      username: String(u.username ?? ""),
+      title: String(u.title ?? ""),
+      email: String(u.email ?? "").trim().toLowerCase(),
+      home: u.home === "1",
+      pending: server.pending === "1",
+    });
+  }
+  return out;
 }

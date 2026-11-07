@@ -24,6 +24,7 @@ import { PageToolbar } from "../components/PageToolbar";
 
 const SOURCE: Record<Recipient["source"], { label: string; color: string }> = {
   manual: { label: "Manual", color: "gray" },
+  plex: { label: "Plex", color: "yellow" },
   tautulli: { label: "Tautulli", color: "orange" },
   import: { label: "v1 import", color: "blue" },
 };
@@ -53,19 +54,28 @@ export function RecipientsPage() {
             <Button
               variant="default"
               leftSection={<IconCloudDownload size={16} />}
-              loading={m.importTautulli.isPending}
+              loading={m.importPlex.isPending}
               onClick={() =>
-                m.importTautulli.mutate(undefined, {
+                m.importPlex.mutate(undefined, {
                   onSuccess: (r) =>
                     notifyOk(
-                      `${r.added} new (added disabled — switch them on to include them), ${r.updated} updated, ${r.alreadyPresent} already here${r.skippedNoEmail ? `, ${r.skippedNoEmail} without an email` : ""}.`,
-                      "Imported from Tautulli",
+                      [
+                        `${r.found} people have access to your server.`,
+                        r.added ? `${r.added} new — added switched off; turn them on to include them.` : "Nobody new.",
+                        r.alreadyPresent ? `${r.alreadyPresent} already here.` : "",
+                        r.updated ? `${r.updated} got a name filled in.` : "",
+                        r.skippedPending ? `${r.skippedPending} haven't accepted their invite yet (skipped).` : "",
+                        r.skippedNoEmail ? `${r.skippedNoEmail} have no email (managed users, skipped).` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                      "Imported from Plex",
                     ),
                   onError: (e) => notifyError(e, "Import failed"),
                 })
               }
             >
-              Import from Tautulli
+              Import from Plex
             </Button>
             <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing("new")}>
               Add Recipient
@@ -93,7 +103,7 @@ export function RecipientsPage() {
             <Stack align="center" gap="xs">
               <Text c="dimmed">No recipients yet.</Text>
               <Text size="sm" c="dimmed">
-                Add people by hand, or import your Plex users' emails from Tautulli.
+                Add people by hand, or import everyone you've shared your Plex server with.
               </Text>
             </Stack>
           </Center>

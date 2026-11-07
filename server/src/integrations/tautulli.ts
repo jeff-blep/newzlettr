@@ -9,7 +9,6 @@ const ALLOWED = new Set([
   "get_recently_added",
   "get_children_metadata",
   "get_metadata",
-  "get_users",
   "get_libraries",
 ]);
 
@@ -52,14 +51,6 @@ export interface RecentItem {
   parent_media_index?: string | number;
   library_name?: string;
   section_id?: string | number;
-}
-
-export interface TautulliUser {
-  user_id: number;
-  username: string;
-  friendly_name: string;
-  email: string;
-  is_active?: number;
 }
 
 interface PlaysSeries {
@@ -132,8 +123,4 @@ export class TautulliClient {
     return data.children_list ?? [];
   }
 
-  async users(): Promise<TautulliUser[]> {
-    const data = await this.call<TautulliUser[]>("get_users");
-    return Array.isArray(data) ? data : [];
-  }
 }

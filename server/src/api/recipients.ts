@@ -4,7 +4,7 @@ import type { Recipient, RecipientImportResult } from "../../../shared/types.js"
 import type { DB } from "../db/index.js";
 import { tx } from "../db/index.js";
 import { logger } from "../logging.js";
-import { tautulliClient } from "../services.js";
+import { plexClient, plexMachineId } from "../services.js";
 
 const EMAIL = z.string().trim().toLowerCase().email("Enter a valid email address");
 const body = z.object({ name: z.string().trim().max(120).default(""), email: EMAIL, enabled: z.boolean().default(true) });
@@ -85,24 +85,29 @@ export function recipientsRouter(db: DB): Router {
     res.status(204).end();
   });
 
-  /** Merge Plex users (via Tautulli) by email. Never removes anyone. New people start DISABLED. */
-  r.post("/import/tautulli", async (_req, res) => {
-    const users = await tautulliClient(db).users();
-    const result: RecipientImportResult = { added: 0, updated: 0, skippedNoEmail: 0, alreadyPresent: 0 };
+  /** Merge the people this Plex server is shared with (plex.tv), by email. Never removes anyone. New people start DISABLED. */
+  r.post("/import/plex", async (_req, res) => {
+    const machineId = await plexMachineId(db);
+    if (!machineId) return res.status(400).json({ error: "Can't reach Plex — check Settings → Connections" });
+    const users = await plexClient(db).sharedUsers(machineId);
+    const result: RecipientImportResult = { found: users.length, added: 0, updated: 0, skippedNoEmail: 0, skippedPending: 0, alreadyPresent: 0 };
     tx(db, () => {
       const find = db.prepare("SELECT id, name FROM recipients WHERE email = ?");
-      const add = db.prepare("INSERT INTO recipients(name, email, enabled, source) VALUES(?, ?, 0, 'tautulli')");
+      const add = db.prepare("INSERT INTO recipients(name, email, enabled, source) VALUES(?, ?, 0, 'plex')");
       const fillName = db.prepare("UPDATE recipients SET name = ? WHERE id = ?");
       for (const u of users) {
-        const email = (u.email ?? "").trim().toLowerCase();
-        if (!z.string().email().safeParse(email).success) {
+        if (u.pending) {
+          result.skippedPending++;
+          continue;
+        }
+        if (!z.string().email().safeParse(u.email).success) {
           result.skippedNoEmail++;
           continue;
         }
-        const name = (u.friendly_name || u.username || "").trim();
-        const existing = find.get(email) as { id: number; name: string } | undefined;
+        const name = (u.title || u.username || "").trim();
+        const existing = find.get(u.email) as { id: number; name: string } | undefined;
         if (!existing) {
-          add.run(name, email);
+          add.run(name, u.email);
           result.added++;
         } else if (!existing.name && name) {
           fillName.run(name, existing.id);
@@ -110,7 +115,7 @@ export function recipientsRouter(db: DB): Router {
         } else result.alreadyPresent++;
       }
     });
-    log.info(result, "imported recipients from Tautulli");
+    log.info(result, "imported recipients from Plex");
     res.json(result);
   });
 

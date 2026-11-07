@@ -20,7 +20,7 @@ export function useRecipientMutations() {
       onSuccess: done,
     }),
     remove: useMutation({ mutationFn: (id: number) => del<void>(`/api/recipients/${id}`), onSuccess: done }),
-    importTautulli: useMutation({ mutationFn: () => post<RecipientImportResult>("/api/recipients/import/tautulli"), onSuccess: done }),
+    importPlex: useMutation({ mutationFn: () => post<RecipientImportResult>("/api/recipients/import/plex"), onSuccess: done }),
   };
 }
 

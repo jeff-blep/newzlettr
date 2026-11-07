@@ -10,6 +10,7 @@
   "dependencies": {
     "croner": "^9.1.0",
     "express": "^5.1.0",
+    "fast-xml-parser": "^5.12.0",
     "nodemailer": "^10.3.1",
     "pino": "^9.14.0",
     "sanitize-html": "^2.18.1",

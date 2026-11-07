@@ -148,16 +148,21 @@ export interface Recipient {
   name: string;
   email: string;
   enabled: boolean;
-  source: "manual" | "tautulli" | "import";
+  /** "tautulli" only appears on rows imported by earlier v2 builds. */
+  source: "manual" | "plex" | "tautulli" | "import";
   createdAt: string;
   /** Number of newsletters that pick this recipient explicitly. */
   newsletterCount: number;
 }
 
 export interface RecipientImportResult {
+  /** Plex users with access to this server. */
+  found: number;
   added: number;
   updated: number;
   skippedNoEmail: number;
+  /** Invited but haven't accepted yet - not imported. */
+  skippedPending: number;
   alreadyPresent: number;
 }
 
