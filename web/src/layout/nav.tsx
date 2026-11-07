@@ -16,6 +16,9 @@ import { SystemTasks } from "../pages/system/SystemTasks";
 import { ConnectionsSettings } from "../pages/settings/ConnectionsSettings";
 import { EmailSettings } from "../pages/settings/EmailSettings";
 import { ImagesSettings } from "../pages/settings/ImagesSettings";
+import { RecipientsPage } from "../pages/RecipientsPage";
+import { HostPickPage } from "../pages/HostPickPage";
+import { StatsPage } from "../pages/StatsPage";
 
 export interface NavChild {
   label: string;
@@ -52,19 +55,19 @@ export const NAV: NavItem[] = [
     label: "Recipients",
     path: "/recipients",
     icon: <IconUsers size={18} />,
-    element: soon("Recipients", 3, "Who gets the newsletter. Import from Tautulli."),
+    element: <RecipientsPage />,
   },
   {
     label: "Host's Pick",
     path: "/host-pick",
     icon: <IconStar size={18} />,
-    element: soon("Host's Pick", 3, "Feature one title from your Plex library with a note."),
+    element: <HostPickPage />,
   },
   {
     label: "Stats",
     path: "/stats",
     icon: <IconChartBar size={18} />,
-    element: soon("Stats", 3, "Library totals and what's been watched."),
+    element: <StatsPage />,
   },
   {
     label: "Activity",

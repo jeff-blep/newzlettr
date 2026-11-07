@@ -102,6 +102,72 @@ export interface HealthResponse {
   checks: HealthCheck[];
 }
 
+/* ------------------------------- recipients ------------------------------- */
+
+export interface Recipient {
+  id: number;
+  name: string;
+  email: string;
+  enabled: boolean;
+  source: "manual" | "tautulli" | "import";
+  createdAt: string;
+  /** Number of newsletters that pick this recipient explicitly. */
+  newsletterCount: number;
+}
+
+export interface RecipientImportResult {
+  added: number;
+  updated: number;
+  skippedNoEmail: number;
+  alreadyPresent: number;
+}
+
+/* ------------------------------ media / stats ----------------------------- */
+
+/** A title as shown on cards. `thumb` is a Plex-relative image path. */
+export interface MediaRef {
+  ratingKey?: string;
+  title: string;
+  subtitle?: string;
+  year?: number;
+  thumb?: string;
+  plays?: number;
+  users?: number;
+  seconds?: number;
+  summary?: string;
+  type?: string;
+  addedAt?: number;
+}
+
+export interface PlatformStat {
+  name: string;
+  plays: number;
+  icon: string; // file name under /email-assets/platforms
+}
+
+export interface StatsResponse {
+  days: number;
+  library: { movies: number; shows: number; episodes: number } | null;
+  window: { moviePlays: number; episodePlays: number; seconds: number } | null;
+  mostWatchedMovies: MediaRef[];
+  mostWatchedShows: MediaRef[];
+  popularMovies: MediaRef[];
+  popularShows: MediaRef[];
+  platforms: PlatformStat[];
+  errors: string[];
+}
+
+/* -------------------------------- host pick -------------------------------- */
+
+export interface HostPick {
+  plexItemId: string | null;
+  note: string;
+  updatedAt: string | null;
+  item: MediaRef | null;
+  /** Set when the item couldn't be loaded (deleted from Plex, Plex down). */
+  itemError?: string;
+}
+
 export interface ApiError {
   error: string;
   details?: unknown;

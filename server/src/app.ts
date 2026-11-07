@@ -6,6 +6,8 @@ import { requireAuth } from "./auth/index.js";
 import { authRouter } from "./api/auth.js";
 import { settingsRouter } from "./api/settings.js";
 import { systemRouter } from "./api/system.js";
+import { recipientsRouter } from "./api/recipients.js";
+import { mediaRouter } from "./api/media.js";
 import { logger } from "./logging.js";
 import { ASSETS_DIR, WEB_DIST } from "./paths.js";
 
@@ -32,6 +34,8 @@ export function createApp(db: DB): express.Express {
   app.use("/api/auth", authRouter(db));
   app.use("/api/settings", settingsRouter(db));
   app.use("/api/system", systemRouter(db));
+  app.use("/api/recipients", recipientsRouter(db));
+  app.use("/api", mediaRouter(db));
   app.use("/api", (_req, res) => res.status(404).json({ error: "not found" }));
 
   // Web UI (SPA). In dev the Vite server serves it instead.
