@@ -28,13 +28,15 @@ export interface PlexItem {
 }
 
 export interface PlexSharedUser {
-  id: string;
+  userId: string;
   username: string;
   title: string;
   email: string;
-  home: boolean;
   /** Invited but hasn't accepted yet. */
   pending: boolean;
+  /** Titles of the libraries switched on for this person (empty = friend with no libraries). */
+  libraries: string[];
+  allLibraries: boolean;
 }
 
 export interface LibraryTotals {
@@ -109,18 +111,17 @@ export class PlexClient {
   }
 
   /**
-   * People you've shared this server with (plex.tv "api/users"), limited to those who have
-   * accepted access to THIS server (matched by machine id). Home/managed users without an
-   * email are returned with email "" so the caller can report them.
+   * Everyone this server is shared with, and which libraries each person has
+   * (plex.tv shared_servers for this machine). Requires the server owner's token.
    */
   async sharedUsers(machineIdentifier: string): Promise<PlexSharedUser[]> {
-    const res = await httpFetch("https://plex.tv/api/users", {
+    const res = await httpFetch(`https://plex.tv/api/servers/${encodeURIComponent(machineIdentifier)}/shared_servers`, {
       headers: { "X-Plex-Token": this.cfg.token, "X-Plex-Client-Identifier": "newzlettr", Accept: "application/xml" },
       timeoutMs: 15_000,
     });
     if (res.status === 401) throw new HttpError("plex.tv rejected the token — use the server owner's Plex token", 401);
     if (!res.ok) throw new HttpError(`plex.tv returned ${res.status}`, res.status);
-    return parseSharedUsers(await res.text(), machineIdentifier);
+    return parseSharedUsers(await res.text());
   }
 
   async sections(): Promise<{ key: string; title: string; type: string }[]> {
@@ -199,23 +200,27 @@ export function plexWebLink(machineIdentifier: string, ratingKey: string): strin
   return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
 }
 
-/** Parses plex.tv api/users XML; keeps only users with access to `machineIdentifier`. */
-export function parseSharedUsers(xmlText: string, machineIdentifier: string): PlexSharedUser[] {
-  const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", isArray: (name) => name === "User" || name === "Server" }).parse(xmlText) as {
-    MediaContainer?: { User?: (Record<string, string> & { Server?: Record<string, string>[] })[] };
+/**
+ * Parses plex.tv shared_servers XML. Only the fields we need are read - each share also
+ * carries the person's accessToken, which is deliberately ignored (never stored or logged).
+ */
+export function parseSharedUsers(xmlText: string): PlexSharedUser[] {
+  const xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", isArray: (name) => name === "SharedServer" || name === "Section" }).parse(xmlText) as {
+    MediaContainer?: { SharedServer?: (Record<string, string> & { Section?: Record<string, string>[] })[] };
   };
-  const out: PlexSharedUser[] = [];
-  for (const u of xml.MediaContainer?.User ?? []) {
-    const server = (u.Server ?? []).find((s) => s.machineIdentifier === machineIdentifier);
-    if (!server) continue;
-    out.push({
-      id: String(u.id ?? ""),
-      username: String(u.username ?? ""),
-      title: String(u.title ?? ""),
-      email: String(u.email ?? "").trim().toLowerCase(),
-      home: u.home === "1",
-      pending: server.pending === "1",
-    });
-  }
-  return out;
+  return (xml.MediaContainer?.SharedServer ?? []).map((s) => {
+    const sections = s.Section ?? [];
+    return {
+      userId: String(s.userID ?? ""),
+      username: String(s.username ?? ""),
+      title: String(s.name ?? s.username ?? ""),
+      email: String(s.email ?? "").trim().toLowerCase(),
+      pending: !s.acceptedAt || s.acceptedAt === "0",
+      libraries: sections
+        .filter((x) => x.shared === "1")
+        .map((x) => String(x.title))
+        .sort((a, b) => a.localeCompare(b)),
+      allLibraries: s.allLibraries === "1",
+    };
+  });
 }

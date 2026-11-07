@@ -8,6 +8,7 @@ import { CONFIG_DIR, DB_FILE, ensureDirs } from "./paths.js";
 import { effectiveTimezone, getApiKey, getSection } from "./settings.js";
 import { registerTask, stopAllTasks } from "./tasks.js";
 import { applyPendingRestore, createBackup } from "./backup.js";
+import { syncPlexAccess } from "./data/plexAccess.js";
 import { VERSION } from "./api/system.js";
 
 ensureDirs();
@@ -40,6 +41,10 @@ registerTask("newsletters", "Send Due Newsletters", MIN, async () => {
   const r = await runDueNewsletters(db);
   return r.sent || r.skipped ? `Sent ${r.sent}, skipped ${r.skipped}` : "Nothing due";
 }, 10_000);
+registerTask("plex-access", "Sync Plex Access", 6 * 60 * MIN, async () => {
+  const s = await syncPlexAccess(db);
+  return `${s.libraries} with libraries, ${s.noLibraries} without, ${s.noAccess} no access`;
+}, 30_000);
 registerTask("backup", "Backup Database", 7 * 24 * 60 * MIN, async () => `Created ${createBackup(db, "scheduled").name}`, 10 * MIN);
 registerTask("housekeeping", "Housekeeping", 60 * MIN, async () => {
   const sessions = purgeExpiredSessions(db);

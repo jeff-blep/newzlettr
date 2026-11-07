@@ -9,6 +9,7 @@ import {
   Group,
   Loader,
   Modal,
+  SegmentedControl,
   Stack,
   Switch,
   Table,
@@ -16,8 +17,8 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { IconCloudDownload, IconPencil, IconPlus, IconSearch, IconTrash } from "@tabler/icons-react";
-import type { Recipient } from "../../../shared/types";
+import { IconCloudDownload, IconPencil, IconPlus, IconRefresh, IconSearch, IconTrash } from "@tabler/icons-react";
+import type { PlexAccessStatus, Recipient } from "../../../shared/types";
 import { useRecipientMutations, useRecipients } from "../api/media";
 import { notifyError, notifyOk } from "../components/notify";
 import { PageToolbar } from "../components/PageToolbar";
@@ -29,21 +30,49 @@ const SOURCE: Record<Recipient["source"], { label: string; color: string }> = {
   import: { label: "v1 import", color: "blue" },
 };
 
+const ACCESS: Record<PlexAccessStatus | "unknown", { label: string; color: string; help: string }> = {
+  libraries: { label: "", color: "green", help: "Has these libraries" },
+  no_libraries: { label: "Friend · no libraries", color: "yellow", help: "Still a Plex friend, but every library is switched off" },
+  invited: { label: "Invite pending", color: "blue", help: "Invited to your server but hasn't accepted yet" },
+  no_access: { label: "No Plex access", color: "red", help: "Not shared on your Plex server (removed, or never added)" },
+  unknown: { label: "Not checked", color: "gray", help: "Click “Refresh Plex access” to check" },
+};
+
+export function PlexAccessBadge({ access }: { access: Recipient["plexAccess"] }) {
+  const key = access?.status ?? "unknown";
+  const a = ACCESS[key];
+  const label = key === "libraries" ? access!.libraries.join(" · ") : a.label;
+  const tip = `${a.help}${access ? ` · checked ${new Date(access.checkedAt).toLocaleString()}` : ""}`;
+  return (
+    <Tooltip label={tip} multiline maw={320}>
+      <Badge variant="light" color={a.color} size="sm" style={{ textTransform: "none" }}>
+        {label}
+      </Badge>
+    </Tooltip>
+  );
+}
+
+type AccessFilter = "all" | "libraries" | "no_libraries" | "no_access";
+
 export function RecipientsPage() {
   const { data, isPending, error } = useRecipients();
   const m = useRecipientMutations();
   const [filter, setFilter] = useState("");
+  const [access, setAccess] = useState<AccessFilter>("all");
   const [editing, setEditing] = useState<Recipient | "new" | null>(null);
   const [deleting, setDeleting] = useState<Recipient | null>(null);
 
   const rows = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    return (data ?? []).filter((r) => !f || r.name.toLowerCase().includes(f) || r.email.includes(f));
-  }, [data, filter]);
+    return (data ?? [])
+      .filter((r) => !f || r.name.toLowerCase().includes(f) || r.email.includes(f))
+      .filter((r) => access === "all" || accessGroup(r) === access);
+  }, [data, filter, access]);
 
   if (isPending) return <Center p="xl"><Loader /></Center>;
   if (error || !data) return <Alert color="red">{String(error)}</Alert>;
   const enabled = data.filter((r) => r.enabled).length;
+  const count = (g: AccessFilter) => data.filter((r) => accessGroup(r) === g).length;
 
   return (
     <>
@@ -51,6 +80,23 @@ export function RecipientsPage() {
         title="Recipients"
         actions={
           <>
+            <Button
+              variant="default"
+              leftSection={<IconRefresh size={16} />}
+              loading={m.syncPlex.isPending}
+              onClick={() =>
+                m.syncPlex.mutate(undefined, {
+                  onSuccess: (s) =>
+                    notifyOk(
+                      `${s.libraries} with libraries · ${s.noLibraries} friends without libraries · ${s.invited} invite${s.invited === 1 ? "" : "s"} pending · ${s.noAccess} without Plex access.`,
+                      "Plex access refreshed",
+                    ),
+                  onError: (e) => notifyError(e, "Couldn't check Plex"),
+                })
+              }
+            >
+              Refresh Plex access
+            </Button>
             <Button
               variant="default"
               leftSection={<IconCloudDownload size={16} />}
@@ -85,13 +131,26 @@ export function RecipientsPage() {
       />
 
       <Group justify="space-between" mb="sm">
+        <Group gap="sm">
         <TextInput
           leftSection={<IconSearch size={16} />}
           placeholder="Filter by name or email"
           value={filter}
           onChange={(e) => setFilter(e.currentTarget.value)}
-          w={320}
+          w={280}
         />
+        <SegmentedControl
+          size="sm"
+          value={access}
+          onChange={(v) => setAccess(v as AccessFilter)}
+          data={[
+            { value: "all", label: `All (${data.length})` },
+            { value: "libraries", label: `With libraries (${count("libraries")})` },
+            { value: "no_libraries", label: `No libraries (${count("no_libraries")})` },
+            { value: "no_access", label: `No access (${count("no_access")})` },
+          ]}
+        />
+        </Group>
         <Text size="sm" c="dimmed">
           {data.length} recipients · {enabled} enabled
         </Text>
@@ -114,6 +173,7 @@ export function RecipientsPage() {
                 <Table.Th w={70}>Enabled</Table.Th>
                 <Table.Th>Name</Table.Th>
                 <Table.Th>Email</Table.Th>
+                <Table.Th>Plex access</Table.Th>
                 <Table.Th>Source</Table.Th>
                 <Table.Th w={90} />
               </Table.Tr>
@@ -130,6 +190,9 @@ export function RecipientsPage() {
                   </Table.Td>
                   <Table.Td>{r.name || <Text c="dimmed" span size="sm">—</Text>}</Table.Td>
                   <Table.Td>{r.email}</Table.Td>
+                  <Table.Td>
+                    <PlexAccessBadge access={r.plexAccess} />
+                  </Table.Td>
                   <Table.Td>
                     <Badge variant="light" color={SOURCE[r.source].color} size="sm">
                       {SOURCE[r.source].label}
@@ -153,9 +216,9 @@ export function RecipientsPage() {
               ))}
               {rows.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Text c="dimmed" ta="center" size="sm" p="md">
-                      Nobody matches “{filter}”.
+                      Nobody matches these filters.
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -241,4 +304,12 @@ function RecipientModal({ recipient, onClose }: { recipient: Recipient | null; o
       </form>
     </Modal>
   );
+}
+
+/** Filter bucket for a recipient. Invites count as "no access" until accepted; unchecked = all only. */
+function accessGroup(r: Recipient): AccessFilter | "unknown" {
+  const st = r.plexAccess?.status;
+  if (!st) return "unknown";
+  if (st === "invited") return "no_access";
+  return st;
 }

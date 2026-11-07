@@ -143,6 +143,9 @@ export interface HealthResponse {
 
 /* ------------------------------- recipients ------------------------------- */
 
+/** libraries = has at least one library; no_libraries = friend with every library switched off. */
+export type PlexAccessStatus = "libraries" | "no_libraries" | "invited" | "no_access";
+
 export interface Recipient {
   id: number;
   name: string;
@@ -153,6 +156,8 @@ export interface Recipient {
   createdAt: string;
   /** Number of newsletters that pick this recipient explicitly. */
   newsletterCount: number;
+  /** null = never checked against Plex. */
+  plexAccess: { status: PlexAccessStatus; libraries: string[]; checkedAt: string } | null;
 }
 
 export interface RecipientImportResult {
@@ -164,6 +169,8 @@ export interface RecipientImportResult {
   /** Invited but haven't accepted yet - not imported. */
   skippedPending: number;
   alreadyPresent: number;
+  /** Everyone's access after the import (whole list, not just new people). */
+  access: { libraries: number; noLibraries: number; invited: number; noAccess: number };
 }
 
 /* ------------------------------ media / stats ----------------------------- */

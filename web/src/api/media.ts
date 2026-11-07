@@ -20,6 +20,10 @@ export function useRecipientMutations() {
       onSuccess: done,
     }),
     remove: useMutation({ mutationFn: (id: number) => del<void>(`/api/recipients/${id}`), onSuccess: done }),
+    syncPlex: useMutation({
+      mutationFn: () => post<{ shares: number; libraries: number; noLibraries: number; invited: number; noAccess: number }>("/api/recipients/sync/plex"),
+      onSuccess: done,
+    }),
     importPlex: useMutation({ mutationFn: () => post<RecipientImportResult>("/api/recipients/import/plex"), onSuccess: done }),
   };
 }

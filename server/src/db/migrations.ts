@@ -97,4 +97,15 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: "recipient plex access",
+    sql: `
+      ALTER TABLE recipients ADD COLUMN plex_user_id TEXT;
+      -- libraries | no_libraries | invited | no_access ; NULL = never checked
+      ALTER TABLE recipients ADD COLUMN plex_status TEXT;
+      ALTER TABLE recipients ADD COLUMN plex_libraries TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE recipients ADD COLUMN plex_checked_at TEXT;
+    `,
+  },
 ];

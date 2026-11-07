@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { Recipient, RecipientImportResult } from "../../../shared/types.js";
+import type { PlexAccessStatus, Recipient, RecipientImportResult } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { tx } from "../db/index.js";
 import { logger } from "../logging.js";
-import { plexClient, plexMachineId } from "../services.js";
+import { applyShares, fetchShares, syncPlexAccess } from "../data/plexAccess.js";
 
 const EMAIL = z.string().trim().toLowerCase().email("Enter a valid email address");
 const body = z.object({ name: z.string().trim().max(120).default(""), email: EMAIL, enabled: z.boolean().default(true) });
@@ -17,6 +17,9 @@ interface Row {
   source: Recipient["source"];
   created_at: string;
   newsletter_count: number;
+  plex_status: PlexAccessStatus | null;
+  plex_libraries: string;
+  plex_checked_at: string | null;
 }
 
 const toRecipient = (r: Row): Recipient => ({
@@ -27,7 +30,20 @@ const toRecipient = (r: Row): Recipient => ({
   source: r.source,
   createdAt: r.created_at,
   newsletterCount: r.newsletter_count,
+  plexAccess:
+    r.plex_status && r.plex_checked_at
+      ? { status: r.plex_status, libraries: safeList(r.plex_libraries), checkedAt: r.plex_checked_at }
+      : null,
 });
+
+function safeList(json: string): string[] {
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
 
 const SELECT = `SELECT r.*, (SELECT COUNT(*) FROM newsletter_recipients nr WHERE nr.recipient_id = r.id) AS newsletter_count
                 FROM recipients r`;
@@ -85,17 +101,15 @@ export function recipientsRouter(db: DB): Router {
     res.status(204).end();
   });
 
-  /** Merge the people this Plex server is shared with (plex.tv), by email. Never removes anyone. New people start DISABLED. */
+  /** Merge the people this Plex server is shared with, by email. Never removes anyone. New people start DISABLED. */
   r.post("/import/plex", async (_req, res) => {
-    const machineId = await plexMachineId(db);
-    if (!machineId) return res.status(400).json({ error: "Can't reach Plex — check Settings → Connections" });
-    const users = await plexClient(db).sharedUsers(machineId);
-    const result: RecipientImportResult = { found: users.length, added: 0, updated: 0, skippedNoEmail: 0, skippedPending: 0, alreadyPresent: 0 };
+    const shares = await fetchShares(db);
+    const result: Omit<RecipientImportResult, "access"> = { found: shares.length, added: 0, updated: 0, skippedNoEmail: 0, skippedPending: 0, alreadyPresent: 0 };
     tx(db, () => {
       const find = db.prepare("SELECT id, name FROM recipients WHERE email = ?");
       const add = db.prepare("INSERT INTO recipients(name, email, enabled, source) VALUES(?, ?, 0, 'plex')");
       const fillName = db.prepare("UPDATE recipients SET name = ? WHERE id = ?");
-      for (const u of users) {
+      for (const u of shares) {
         if (u.pending) {
           result.skippedPending++;
           continue;
@@ -115,9 +129,13 @@ export function recipientsRouter(db: DB): Router {
         } else result.alreadyPresent++;
       }
     });
+    const a = applyShares(db, shares);
     log.info(result, "imported recipients from Plex");
-    res.json(result);
+    res.json({ ...result, access: { libraries: a.libraries, noLibraries: a.noLibraries, invited: a.invited, noAccess: a.noAccess } } satisfies RecipientImportResult);
   });
+
+  /** Re-check everyone's Plex access without adding anyone. */
+  r.post("/sync/plex", async (_req, res) => res.json(await syncPlexAccess(db)));
 
   return r;
 }
