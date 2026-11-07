@@ -8,6 +8,7 @@ import { settingsRouter } from "./api/settings.js";
 import { systemRouter } from "./api/system.js";
 import { recipientsRouter } from "./api/recipients.js";
 import { mediaRouter } from "./api/media.js";
+import { listsRouter } from "./api/lists.js";
 import { renderRouter, templatesRouter } from "./api/templates.js";
 import { activityRouter, newslettersRouter, scheduleRouter } from "./api/newsletters.js";
 import { logger } from "./logging.js";
@@ -37,6 +38,7 @@ export function createApp(db: DB): express.Express {
   app.use("/api/settings", settingsRouter(db));
   app.use("/api/system", systemRouter(db));
   app.use("/api/recipients", recipientsRouter(db));
+  app.use("/api/recipient-lists", listsRouter(db));
   app.use("/api/templates", templatesRouter(db));
   app.use("/api/render", renderRouter(db));
   app.use("/api/newsletters", newslettersRouter(db));

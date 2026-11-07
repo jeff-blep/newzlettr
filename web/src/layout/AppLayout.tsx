@@ -90,6 +90,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                     <NavLink
                       key={c.path}
                       to={c.path}
+                      end
                       onClick={close}
                       className={({ isActive }) => (isActive ? classes.childActive : classes.child)}
                     >

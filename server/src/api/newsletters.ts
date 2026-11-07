@@ -18,7 +18,8 @@ const input = z.object({
   cron: z.string().trim().min(1, "Pick a schedule"),
   historyDays: z.number().int().min(1).max(90).nullable().default(null),
   sendAsBcc: z.boolean().default(true),
-  allRecipients: z.boolean().default(true),
+  allRecipients: z.boolean().default(false),
+  listIds: z.array(z.number().int().positive()).max(500).default([]),
   recipientIds: z.array(z.number().int().positive()).max(5000).default([]),
   enabled: z.boolean().default(false),
 });
@@ -45,6 +46,7 @@ export function newslettersRouter(db: DB): Router {
       historyDays: row.history_days,
       sendAsBcc: !!row.send_as_bcc,
       allRecipients: !!row.all_recipients,
+      listIds: (db.prepare("SELECT list_id FROM newsletter_lists WHERE newsletter_id = ?").all(row.id) as { list_id: number }[]).map((x) => x.list_id),
       recipientIds: (db.prepare("SELECT recipient_id FROM newsletter_recipients WHERE newsletter_id = ?").all(row.id) as { recipient_id: number }[]).map(
         (x) => x.recipient_id,
       ),
@@ -84,9 +86,12 @@ export function newslettersRouter(db: DB): Router {
         ).run(d.name, d.subject, d.templateId, schedule, d.historyDays, d.sendAsBcc ? 1 : 0, d.allRecipients ? 1 : 0, d.enabled ? 1 : 0, nid);
       }
       db.prepare("DELETE FROM newsletter_recipients WHERE newsletter_id = ?").run(nid);
+      db.prepare("DELETE FROM newsletter_lists WHERE newsletter_id = ?").run(nid);
       if (!d.allRecipients) {
         const link = db.prepare("INSERT OR IGNORE INTO newsletter_recipients(newsletter_id, recipient_id) SELECT ?, id FROM recipients WHERE id = ?");
         for (const rid of d.recipientIds) link.run(nid, rid);
+        const linkList = db.prepare("INSERT OR IGNORE INTO newsletter_lists(newsletter_id, list_id) SELECT ?, id FROM recipient_lists WHERE id = ?");
+        for (const lid of d.listIds) linkList.run(nid, lid);
       }
       return nid;
     });

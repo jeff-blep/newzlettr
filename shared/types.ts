@@ -150,7 +150,6 @@ export interface Recipient {
   id: number;
   name: string;
   email: string;
-  enabled: boolean;
   /** "tautulli" only appears on rows imported by earlier v2 builds. */
   source: "manual" | "plex" | "tautulli" | "import";
   createdAt: string;
@@ -158,6 +157,27 @@ export interface Recipient {
   newsletterCount: number;
   /** null = never checked against Plex. */
   plexAccess: { status: PlexAccessStatus; libraries: string[]; checkedAt: string } | null;
+  /** Recipient lists this person belongs to. */
+  listIds: number[];
+}
+
+/** Someone Import from Plex skips (like Sonarr's import list exclusions). */
+export interface IgnoredPerson {
+  id: number;
+  name: string;
+  email: string | null;
+  plexUserId: string | null;
+  ignoredAt: string;
+}
+
+export interface RecipientList {
+  id: number;
+  name: string;
+  description: string;
+  createdAt: string;
+  memberCount: number;
+  memberIds: number[];
+  usedBy: { id: number; name: string }[];
 }
 
 export interface RecipientImportResult {
@@ -168,6 +188,8 @@ export interface RecipientImportResult {
   skippedNoEmail: number;
   /** Invited but haven't accepted yet - not imported. */
   skippedPending: number;
+  /** On the Ignore list - not re-added. */
+  skippedIgnored: number;
   alreadyPresent: number;
   /** Everyone's access after the import (whole list, not just new people). */
   access: { libraries: number; noLibraries: number; invited: number; noAccess: number };
@@ -253,9 +275,13 @@ export interface Newsletter {
   /** null = use Settings > General default */
   historyDays: number | null;
   sendAsBcc: boolean;
+  /** true = everyone on the Recipients page. */
   allRecipients: boolean;
+  /** Lists to send to. */
+  listIds: number[];
+  /** Individually picked people. */
   recipientIds: number[];
-  /** Enabled recipients this newsletter would actually reach right now. */
+  /** People this newsletter would actually reach right now. */
   audienceCount: number;
   enabled: boolean;
   createdAt: string;
@@ -272,6 +298,7 @@ export interface NewsletterInput {
   historyDays: number | null;
   sendAsBcc: boolean;
   allRecipients: boolean;
+  listIds: number[];
   recipientIds: number[];
   enabled: boolean;
 }

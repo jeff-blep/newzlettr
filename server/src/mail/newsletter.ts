@@ -36,16 +36,25 @@ export function cronOf(row: NewsletterRow): string {
   }
 }
 
-/** Enabled recipients this newsletter reaches. */
+/**
+ * Who a newsletter reaches, de-duplicated:
+ * - "All recipients": everyone on the Recipients page.
+ * - Otherwise: members of the chosen lists + individually picked people.
+ */
 export function audience(db: DB, row: NewsletterRow): string[] {
   const rows = row.all_recipients
-    ? db.prepare("SELECT email FROM recipients WHERE enabled = 1 ORDER BY email").all()
+    ? db.prepare("SELECT email FROM recipients ORDER BY email").all()
     : db
         .prepare(
-          `SELECT r.email FROM recipients r JOIN newsletter_recipients nr ON nr.recipient_id = r.id
-           WHERE nr.newsletter_id = ? AND r.enabled = 1 ORDER BY r.email`,
+          `SELECT DISTINCT r.email FROM recipients r
+           WHERE (
+             r.id IN (SELECT recipient_id FROM newsletter_recipients WHERE newsletter_id = ?)
+             OR r.id IN (SELECT m.recipient_id FROM recipient_list_members m
+                         JOIN newsletter_lists nl ON nl.list_id = m.list_id WHERE nl.newsletter_id = ?)
+           )
+           ORDER BY r.email`,
         )
-        .all(row.id);
+        .all(row.id, row.id);
   return (rows as { email: string }[]).map((r) => r.email);
 }
 

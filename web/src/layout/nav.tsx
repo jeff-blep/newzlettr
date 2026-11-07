@@ -16,6 +16,8 @@ import { ConnectionsSettings } from "../pages/settings/ConnectionsSettings";
 import { EmailSettings } from "../pages/settings/EmailSettings";
 import { ImagesSettings } from "../pages/settings/ImagesSettings";
 import { RecipientsPage } from "../pages/RecipientsPage";
+import { ListsPage } from "../pages/ListsPage";
+import { IgnoredPage } from "../pages/IgnoredPage";
 import { HostPickPage } from "../pages/HostPickPage";
 import { StatsPage } from "../pages/StatsPage";
 import { TemplatesPage } from "../pages/templates/TemplatesPage";
@@ -60,7 +62,11 @@ export const NAV: NavItem[] = [
     label: "Recipients",
     path: "/recipients",
     icon: <IconUsers size={18} />,
-    element: <RecipientsPage />,
+    children: [
+      { label: "People", path: "/recipients", element: <RecipientsPage /> },
+      { label: "Lists", path: "/recipients/lists", element: <ListsPage /> },
+      { label: "Ignored", path: "/recipients/ignored", element: <IgnoredPage /> },
+    ],
   },
   {
     label: "Host's Pick",

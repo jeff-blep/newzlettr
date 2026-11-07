@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Alert, Anchor, Button, Group, Modal, MultiSelect, NumberInput, SegmentedControl, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import type { Newsletter, NewsletterInput } from "../../../../shared/types";
 import { useRecipients } from "../../api/media";
+import { useLists } from "../../api/lists";
 import { useNewsletterMutations } from "../../api/newsletters";
 import { useGeneralSettings } from "../../api/settings";
 import { useTemplates } from "../../api/templates";
@@ -14,6 +16,7 @@ const DEFAULT_CRON = "0 8 * * 0";
 export function NewsletterModal({ newsletter, onClose }: { newsletter: Newsletter | null; onClose: () => void }) {
   const templates = useTemplates();
   const recipients = useRecipients();
+  const lists = useLists();
   const general = useGeneralSettings();
   const m = useNewsletterMutations();
   const [error, setError] = useState<string | null>(null);
@@ -27,15 +30,24 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
           historyDays: newsletter.historyDays,
           sendAsBcc: newsletter.sendAsBcc,
           allRecipients: newsletter.allRecipients,
+          listIds: newsletter.listIds,
           recipientIds: newsletter.recipientIds,
           enabled: newsletter.enabled,
         }
-      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: null, sendAsBcc: true, allRecipients: true, recipientIds: [], enabled: false },
+      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: null, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], enabled: false },
   );
   const set = <K extends keyof NewsletterInput>(k: K, v: NewsletterInput[K]) => setD((x) => ({ ...x, [k]: v }));
 
-  const enabledRecipients = useMemo(() => (recipients.data ?? []).filter((r) => r.enabled), [recipients.data]);
-  const audience = d.allRecipients ? enabledRecipients.length : d.recipientIds.filter((id) => enabledRecipients.some((r) => r.id === id)).length;
+  // Mirrors the server's audience rule (server/src/mail/newsletter.ts).
+  const { audience, overlap } = useMemo(() => {
+    const people = recipients.data ?? [];
+    if (d.allRecipients) return { audience: people.length, overlap: 0 };
+    const exists = new Set(people.map((r) => r.id));
+    const picks: number[] = [...d.recipientIds.filter((id) => exists.has(id))];
+    for (const l of lists.data ?? []) if (d.listIds.includes(l.id)) picks.push(...l.memberIds.filter((id) => exists.has(id)));
+    const unique = new Set(picks);
+    return { audience: unique.size, overlap: picks.length - unique.size };
+  }, [recipients.data, lists.data, d.allRecipients, d.listIds, d.recipientIds]);
   const busy = m.create.isPending || m.update.isPending;
 
   return (
@@ -99,36 +111,63 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
             allowDecimal={false}
           />
 
-          <div>
-            <Text size="sm" fw={500} mb={6}>
+          <Stack gap={8}>
+            <Text size="sm" fw={500}>
               Recipients
             </Text>
             <SegmentedControl
               value={d.allRecipients ? "all" : "pick"}
               onChange={(v) => set("allRecipients", v === "all")}
               data={[
-                { value: "all", label: "Everyone enabled" },
-                { value: "pick", label: "Choose people" },
+                { value: "pick", label: "Lists & people" },
+                { value: "all", label: "All recipients" },
               ]}
-              mb="xs"
+              w="fit-content"
             />
-            {!d.allRecipients && (
-              <MultiSelect
-                placeholder="Search recipients"
-                data={(recipients.data ?? []).map((r) => ({ value: String(r.id), label: r.name ? `${r.name} <${r.email}>` : r.email, disabled: !r.enabled }))}
-                value={d.recipientIds.map(String)}
-                onChange={(v) => set("recipientIds", v.map(Number))}
-                searchable
-                clearable
-                maxDropdownHeight={260}
-                hidePickedOptions
-              />
+            {d.allRecipients ? (
+              <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={18} />} p="sm">
+                <Text size="sm">
+                  Sends to <b>everyone</b> on the People page ({(recipients.data ?? []).length} right now), regardless of lists — including anyone added later by
+                  Import from Plex.
+                </Text>
+              </Alert>
+            ) : (
+              <>
+                <MultiSelect
+                  label="Lists"
+                  description="Everyone on these lists. People added to a list later are included automatically."
+                  placeholder={(lists.data ?? []).length ? "Pick lists" : "No lists yet — create them under Recipients → Lists"}
+                  data={(lists.data ?? []).map((l) => ({ value: String(l.id), label: `${l.name} · ${l.memberCount}` }))}
+                  value={d.listIds.map(String)}
+                  onChange={(v) => set("listIds", v.map(Number))}
+                  searchable
+                  clearable
+                  disabled={!(lists.data ?? []).length}
+                />
+                <MultiSelect
+                  label="Individual people"
+                  description="Tick anyone extra."
+                  placeholder="Search people"
+                  data={(recipients.data ?? []).map((r) => ({
+                    value: String(r.id),
+                    label: r.name ? `${r.name} <${r.email}>` : r.email,
+                  }))}
+                  value={d.recipientIds.map(String)}
+                  onChange={(v) => set("recipientIds", v.map(Number))}
+                  searchable
+                  clearable
+                  withCheckIcon
+                  checkIconPosition="left"
+                  maxDropdownHeight={280}
+                  nothingFoundMessage="Nobody matches"
+                />
+              </>
             )}
-            <Text size="xs" c={audience ? "dimmed" : "red"} mt={4}>
+            <Text size="xs" c={audience ? "dimmed" : "red"}>
               Reaches {audience} {audience === 1 ? "person" : "people"}
-              {d.allRecipients ? " — everyone switched on in Recipients, including people added later." : "."}
+              {!d.allRecipients && overlap > 0 ? ` (${overlap} on more than one pick get it once)` : ""}.
             </Text>
-          </div>
+          </Stack>
 
           <Switch
             label="Send as BCC"

@@ -108,4 +108,44 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE recipients ADD COLUMN plex_checked_at TEXT;
     `,
   },
+  {
+    version: 3,
+    name: "recipient lists",
+    sql: `
+      CREATE TABLE recipient_lists (
+        id          INTEGER PRIMARY KEY,
+        name        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        description TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      CREATE TABLE recipient_list_members (
+        list_id      INTEGER NOT NULL REFERENCES recipient_lists(id) ON DELETE CASCADE,
+        recipient_id INTEGER NOT NULL REFERENCES recipients(id) ON DELETE CASCADE,
+        PRIMARY KEY (list_id, recipient_id)
+      );
+      CREATE INDEX recipient_list_members_recipient ON recipient_list_members(recipient_id);
+      -- Which lists a newsletter sends to (in addition to individually picked recipients).
+      CREATE TABLE newsletter_lists (
+        newsletter_id INTEGER NOT NULL REFERENCES newsletters(id) ON DELETE CASCADE,
+        list_id       INTEGER NOT NULL REFERENCES recipient_lists(id) ON DELETE CASCADE,
+        PRIMARY KEY (newsletter_id, list_id)
+      );
+    `,
+  },
+  {
+    version: 4,
+    name: "ignore list replaces enabled switch",
+    sql: `
+      -- People Import from Plex must skip (like Sonarr's import list exclusions).
+      CREATE TABLE import_exclusions (
+        id           INTEGER PRIMARY KEY,
+        plex_user_id TEXT UNIQUE,
+        email        TEXT UNIQUE COLLATE NOCASE,
+        name         TEXT NOT NULL DEFAULT '',
+        created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      -- Lists now decide who gets what; the per-person on/off switch is gone.
+      ALTER TABLE recipients DROP COLUMN enabled;
+    `,
+  },
 ];

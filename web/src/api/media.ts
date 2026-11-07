@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { HostPick, MediaRef, Recipient, RecipientImportResult, StatsResponse } from "../../../shared/types";
+import type { HostPick, IgnoredPerson, MediaRef, Recipient, RecipientImportResult, StatsResponse } from "../../../shared/types";
 import { del, get, post, put } from "./client";
 
 /* ------------------------------- recipients ------------------------------- */
@@ -14,14 +14,14 @@ export function useRecipientMutations() {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: recipientsKey });
   return {
-    create: useMutation({ mutationFn: (r: { name: string; email: string; enabled: boolean }) => post<Recipient>("/api/recipients", r), onSuccess: done }),
+    create: useMutation({ mutationFn: (r: { name: string; email: string }) => post<Recipient>("/api/recipients", r), onSuccess: done }),
     update: useMutation({
-      mutationFn: ({ id, ...patch }: { id: number; name?: string; email?: string; enabled?: boolean }) => put<Recipient>(`/api/recipients/${id}`, patch),
+      mutationFn: ({ id, ...patch }: { id: number; name?: string; email?: string }) => put<Recipient>(`/api/recipients/${id}`, patch),
       onSuccess: done,
     }),
-    remove: useMutation({ mutationFn: (id: number) => del<void>(`/api/recipients/${id}`), onSuccess: done }),
-    bulk: useMutation({
-      mutationFn: (b: { action: "enable" | "disable" | "delete"; ids: number[] }) => post<{ action: string; changed: number }>("/api/recipients/bulk", b),
+    remove: useMutation({ mutationFn: ({ id, ignore }: { id: number; ignore: boolean }) => del<void>(`/api/recipients/${id}${ignore ? "?ignore=1" : ""}`), onSuccess: done }),
+    bulkDelete: useMutation({
+      mutationFn: (b: { ids: number[]; ignore: boolean }) => post<{ deleted: number; ignored: number }>("/api/recipients/bulk-delete", b),
       onSuccess: done,
     }),
     syncPlex: useMutation({
@@ -30,6 +30,18 @@ export function useRecipientMutations() {
     }),
     importPlex: useMutation({ mutationFn: () => post<RecipientImportResult>("/api/recipients/import/plex"), onSuccess: done }),
   };
+}
+
+export function useIgnored() {
+  return useQuery({ queryKey: ["recipients", "ignored"], queryFn: () => get<IgnoredPerson[]>("/api/recipients/ignored") });
+}
+
+export function useUnignore() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => post<{ removed: number }>("/api/recipients/ignored/remove", { ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recipients"] }),
+  });
 }
 
 /* --------------------------------- media --------------------------------- */

@@ -62,7 +62,7 @@ export function newsletterHealth(db: DB): HealthCheck[] {
   const rows = db.prepare("SELECT * FROM newsletters WHERE enabled = 1").all() as unknown as NewsletterRow[];
   for (const row of rows) {
     if (!row.template_id) out.push({ source: "newsletters", level: "error", message: `“${row.name}” has no template, so it can't send`, fixPath: "/newsletters" });
-    else if (!audience(db, row).length) out.push({ source: "newsletters", level: "error", message: `“${row.name}” has no enabled recipients`, fixPath: "/newsletters" });
+    else if (!audience(db, row).length) out.push({ source: "newsletters", level: "error", message: `“${row.name}” would reach nobody — pick a list or people`, fixPath: "/newsletters" });
     const cronErr = validateCron(cronOf(row));
     if (cronErr) out.push({ source: "newsletters", level: "error", message: `“${row.name}” has an invalid schedule: ${cronErr}`, fixPath: "/newsletters" });
     const last = db.prepare("SELECT status, error FROM sends WHERE newsletter_id = ? AND trigger != 'test' ORDER BY id DESC LIMIT 1").get(row.id) as
