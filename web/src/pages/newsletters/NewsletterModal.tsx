@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Anchor, Button, Group, Modal, MultiSelect, NumberInput, SegmentedControl, Select, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { Alert, Anchor, Button, Group, Modal, MultiSelect, NumberInput, SegmentedControl, Select, Stack, Switch, Text, Textarea, TextInput } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import type { Newsletter, NewsletterInput } from "../../../../shared/types";
@@ -10,6 +10,7 @@ import { useGeneralSettings } from "../../api/settings";
 import { useTemplates } from "../../api/templates";
 import { notifyOk } from "../../components/notify";
 import { SchedulePicker } from "../../components/SchedulePicker";
+import { LookPicker } from "../../components/LookPicker";
 
 const DEFAULT_CRON = "0 8 * * 0";
 
@@ -32,9 +33,13 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
           allRecipients: newsletter.allRecipients,
           listIds: newsletter.listIds,
           recipientIds: newsletter.recipientIds,
+          emailTheme: newsletter.emailTheme,
+          accentColor: newsletter.accentColor,
+          headerTitle: newsletter.headerTitle,
+          footerText: newsletter.footerText,
           enabled: newsletter.enabled,
         }
-      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: null, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], enabled: false },
+      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: null, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", enabled: false },
   );
   const set = <K extends keyof NewsletterInput>(k: K, v: NewsletterInput[K]) => setD((x) => ({ ...x, [k]: v }));
 
@@ -91,6 +96,32 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
               </>
             }
           />
+
+          <div>
+            <Text size="sm" fw={500} mb={6}>
+              Look
+            </Text>
+            <Stack gap="sm">
+              <LookPicker emailTheme={d.emailTheme} accentColor={d.accentColor} onChange={(l) => setD((x) => ({ ...x, ...l }))} />
+              <TextInput
+                label="Header title"
+                description="Big title at the top of the email. Empty = “<your Plex server name> Newsletter”."
+                value={d.headerTitle}
+                onChange={(e) => set("headerTitle", e.currentTarget.value)}
+                placeholder="My Plex Newsletter"
+                maxLength={80}
+              />
+              <Textarea
+                label="Footer"
+                description="Optional line above the standard footer (e.g. how to reach you, or how to donate)."
+                value={d.footerText}
+                onChange={(e) => set("footerText", e.currentTarget.value)}
+                autosize
+                minRows={2}
+                maxLength={500}
+              />
+            </Stack>
+          </div>
 
           <div>
             <Text size="sm" fw={500} mb={6}>

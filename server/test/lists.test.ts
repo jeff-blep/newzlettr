@@ -62,6 +62,15 @@ describe("recipient lists + newsletter audience", () => {
     expect(who(n.id)).toEqual(["ann"]);
   });
 
+  it("stores and validates each newsletter's look", async () => {
+    const n = (await c.req("POST", "/api/newsletters", { name: "Look", templateId: 1, cron: "0 8 * * 0", emailTheme: "light", accentColor: "#e5a00d" })).body;
+    expect(n).toMatchObject({ emailTheme: "light", accentColor: "#e5a00d" });
+    const d = (await c.req("POST", "/api/newsletters", { name: "Default", templateId: 1, cron: "0 8 * * 0" })).body;
+    expect(d).toMatchObject({ emailTheme: "dark", accentColor: "#7c5cff" });
+    expect((await c.req("POST", "/api/newsletters", { name: "Bad", templateId: 1, cron: "0 8 * * 0", accentColor: "red" })).status).toBe(400);
+    expect((await c.req("POST", "/api/newsletters", { name: "Bad", templateId: 1, cron: "0 8 * * 0", emailTheme: "neon" })).status).toBe(400);
+  });
+
   it("nothing picked = nobody", async () => {
     const n = await newsletter({ allRecipients: false });
     expect(who(n.id)).toEqual([]);

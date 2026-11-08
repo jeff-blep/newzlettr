@@ -50,15 +50,6 @@ export const imagesSchema = z.object({
 });
 
 export const contentSchema = z.object({
-  /** Shown in the email header. Empty = "<Plex server name> Newsletter". */
-  headerTitle: z.string().trim().max(80).default(""),
-  footerText: z.string().trim().max(500).default(""),
-  /** dark / light = that design for everyone; auto = light, switching to dark where the mail app supports it. */
-  emailTheme: z.enum(["dark", "light", "auto"]).default("dark"),
-  accentColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #7c5cff")
-    .default("#7c5cff"),
   /** Rows in ranked cards (most watched, popular, platforms). */
   itemsPerCard: z.number().int().min(1).max(15).default(5),
   recentMoviesMax: z.number().int().min(1).max(30).default(12),
@@ -69,6 +60,19 @@ export const contentSchema = z.object({
   showSummaries: z.boolean().default(true),
   includeWatchLinks: z.boolean().default(true),
 });
+
+/** A newsletter's look. dark/light = that design for everyone; auto = light, switching to dark where supported. */
+export const EMAIL_THEMES = ["dark", "light", "auto"] as const;
+export type EmailTheme = (typeof EMAIL_THEMES)[number];
+export const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+export interface Look {
+  emailTheme: EmailTheme;
+  accentColor: string;
+  /** Empty = "<Plex server name> Newsletter". */
+  headerTitle: string;
+  footerText: string;
+}
+export const DEFAULT_LOOK: Look = { emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "" };
 
 export const SECTIONS = {
   general: generalSchema,

@@ -5,11 +5,11 @@ import type { DB } from "../db/index.js";
 import { tx } from "../db/index.js";
 import { runHealthChecks } from "../health.js";
 import { logger } from "../logging.js";
-import { audience, cronOf, getNewsletterRow, type NewsletterRow, sendNewsletter, toSendRecord } from "../mail/newsletter.js";
+import { audience, cronOf, getNewsletterRow, lookOf, type NewsletterRow, sendNewsletter, toSendRecord } from "../mail/newsletter.js";
 import { resolveForPreview } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { describeCron, nextRuns, validateCron } from "../schedule.js";
-import { effectiveTimezone, getSection } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, effectiveTimezone, getSection, HEX_COLOR } from "../settings.js";
 
 const input = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
@@ -21,6 +21,10 @@ const input = z.object({
   allRecipients: z.boolean().default(false),
   listIds: z.array(z.number().int().positive()).max(500).default([]),
   recipientIds: z.array(z.number().int().positive()).max(5000).default([]),
+  emailTheme: z.enum(EMAIL_THEMES).default(DEFAULT_LOOK.emailTheme),
+  accentColor: z.string().regex(HEX_COLOR, "Use a hex color like #7c5cff").default(DEFAULT_LOOK.accentColor),
+  headerTitle: z.string().trim().max(80).default(""),
+  footerText: z.string().trim().max(500).default(""),
   enabled: z.boolean().default(false),
 });
 
@@ -51,6 +55,7 @@ export function newslettersRouter(db: DB): Router {
         (x) => x.recipient_id,
       ),
       audienceCount: audience(db, row).length,
+      ...lookOf(row),
       enabled: !!row.enabled,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -73,17 +78,48 @@ export function newslettersRouter(db: DB): Router {
           (
             db
               .prepare(
-                `INSERT INTO newsletters(name, subject, template_id, schedule, history_days, send_as_bcc, all_recipients, enabled)
-                 VALUES(?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+                `INSERT INTO newsletters(name, subject, template_id, schedule, history_days, send_as_bcc, all_recipients, enabled,
+                   email_theme, accent_color, header_title, footer_text)
+                 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
               )
-              .get(d.name, d.subject, d.templateId, schedule, d.historyDays, d.sendAsBcc ? 1 : 0, d.allRecipients ? 1 : 0, d.enabled ? 1 : 0) as { id: number }
+              .get(
+                d.name,
+                d.subject,
+                d.templateId,
+                schedule,
+                d.historyDays,
+                d.sendAsBcc ? 1 : 0,
+                d.allRecipients ? 1 : 0,
+                d.enabled ? 1 : 0,
+                d.emailTheme,
+                d.accentColor,
+                d.headerTitle,
+                d.footerText,
+              ) as {
+              id: number;
+            }
           ).id,
         );
       } else {
         db.prepare(
           `UPDATE newsletters SET name = ?, subject = ?, template_id = ?, schedule = ?, history_days = ?, send_as_bcc = ?,
-             all_recipients = ?, enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
-        ).run(d.name, d.subject, d.templateId, schedule, d.historyDays, d.sendAsBcc ? 1 : 0, d.allRecipients ? 1 : 0, d.enabled ? 1 : 0, nid);
+             all_recipients = ?, enabled = ?, email_theme = ?, accent_color = ?, header_title = ?, footer_text = ?,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+        ).run(
+          d.name,
+          d.subject,
+          d.templateId,
+          schedule,
+          d.historyDays,
+          d.sendAsBcc ? 1 : 0,
+          d.allRecipients ? 1 : 0,
+          d.enabled ? 1 : 0,
+          d.emailTheme,
+          d.accentColor,
+          d.headerTitle,
+          d.footerText,
+          nid,
+        );
       }
       db.prepare("DELETE FROM newsletter_recipients WHERE newsletter_id = ?").run(nid);
       db.prepare("DELETE FROM newsletter_lists WHERE newsletter_id = ?").run(nid);
@@ -163,7 +199,7 @@ export function newslettersRouter(db: DB): Router {
     if (!tpl) return res.status(400).json({ error: "This newsletter has no template" });
     const days = row.history_days ?? getSection(db, "general").defaultHistoryDays;
     const previewScheme = req.query.scheme === "dark" ? "dark" : req.query.scheme === "light" ? "light" : undefined;
-    const out = await renderNewsletter(db, { templateHtml: tpl.html, days, subject: row.subject || row.name, previewScheme });
+    const out = await renderNewsletter(db, { templateHtml: tpl.html, days, subject: row.subject || row.name, previewScheme, look: lookOf(row) });
     const html = resolveForPreview(out.html);
     res.json({ html, warnings: out.warnings, bytes: Buffer.byteLength(html) });
   });

@@ -4,7 +4,8 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { IconAlertTriangle, IconRefresh, IconSend } from "@tabler/icons-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSection } from "../../api/sections";
-import { renderPreview, sendTest, useCards, useTemplate, useTemplateMutations } from "../../api/templates";
+import { type Look, renderPreview, sendTest, useCards, useTemplate, useTemplateMutations } from "../../api/templates";
+import { LookPicker } from "../../components/LookPicker";
 import { notifyError, notifyOk } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
@@ -41,6 +42,18 @@ export function TemplateEditorPage() {
   }, [isNew, q.data, loaded, id]);
 
   const dirty = loaded && (name !== baseline.name || html !== baseline.html);
+  // Preview-only look (each newsletter has its own); remembered per browser.
+  const [look, setLook] = useState<Look>(() => {
+    try {
+      return { emailTheme: "dark", accentColor: "#7c5cff", ...JSON.parse(localStorage.getItem("nz-preview-look") ?? "{}") };
+    } catch {
+      return { emailTheme: "dark", accentColor: "#7c5cff" };
+    }
+  });
+  const changeLook = (l: Look) => {
+    setLook(l);
+    localStorage.setItem("nz-preview-look", JSON.stringify(l));
+  };
   const guard = useUnsavedChanges(dirty);
   const [testOpen, setTestOpen] = useState(false);
 
@@ -91,19 +104,18 @@ export function TemplateEditorPage() {
           {loaded && cards.data ? <RichEditor value={html} onChange={setHtml} cards={cards.data} /> : <Loader />}
         </Grid.Col>
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Preview html={html} />
+          <Preview html={html} look={look} onLook={changeLook} />
         </Grid.Col>
       </Grid>
 
-      <TestSendModal opened={testOpen} onClose={() => setTestOpen(false)} html={html} subject={name} />
+      <TestSendModal opened={testOpen} onClose={() => setTestOpen(false)} html={html} subject={name} look={look} />
     </>
   );
 }
 
-function Preview({ html }: { html: string }) {
+function Preview({ html, look, onLook }: { html: string; look: Look; onLook: (l: Look) => void }) {
   const [days, setDays] = useState("7");
-  const content = useSection("content");
-  const auto = content.data?.emailTheme === "auto";
+  const auto = look.emailTheme === "auto";
   const [scheme, setScheme] = useState<"light" | "dark">("light");
   const [debounced] = useDebouncedValue(html, 900);
   const [state, setState] = useState<{ html: string; warnings: string[]; loading: boolean; error?: string }>({ html: "", warnings: [], loading: true });
@@ -113,10 +125,10 @@ function Preview({ html }: { html: string }) {
   useEffect(() => {
     const mine = ++seq.current;
     setState((s) => ({ ...s, loading: true }));
-    renderPreview(debounced, Number(days), undefined, auto ? scheme : undefined)
+    renderPreview(debounced, look, Number(days), auto ? scheme : undefined)
       .then((r) => mine === seq.current && setState({ html: r.html, warnings: r.warnings, loading: false }))
       .catch((e) => mine === seq.current && setState((s) => ({ ...s, loading: false, error: String(e) })));
-  }, [debounced, days, nonce, scheme, auto, content.data?.emailTheme, content.data?.accentColor]);
+  }, [debounced, days, nonce, scheme, look.emailTheme, look.accentColor]);
 
   return (
     <Stack gap="xs" pos="sticky" top={130}>
@@ -125,9 +137,16 @@ function Preview({ html }: { html: string }) {
           <Text fw={600}>Preview</Text>
           {state.loading && <Loader size="xs" />}
         </Group>
+        <Tooltip label="Preview look only — each newsletter sets its own look">
+          <div>
+            <LookPicker compact emailTheme={look.emailTheme} accentColor={look.accentColor} onChange={onLook} />
+          </div>
+        </Tooltip>
+      </Group>
+      <Group justify="flex-end">
         <Group gap="xs">
           {auto && (
-            <Tooltip label="“Match reader's device” is on — check both looks">
+            <Tooltip label="Match device: check both looks">
               <SegmentedControl
                 size="xs"
                 value={scheme}
@@ -179,7 +198,7 @@ function Preview({ html }: { html: string }) {
   );
 }
 
-function TestSendModal({ opened, onClose, html, subject }: { opened: boolean; onClose: () => void; html: string; subject: string }) {
+function TestSendModal({ opened, onClose, html, subject, look }: { opened: boolean; onClose: () => void; html: string; subject: string; look: Look }) {
   const smtp = useSection("smtp");
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -194,7 +213,7 @@ function TestSendModal({ opened, onClose, html, subject }: { opened: boolean; on
           e.preventDefault();
           setBusy(true);
           try {
-            const r = await sendTest(html, to.trim(), 7, subject || "Newsletter preview");
+            const r = await sendTest(html, to.trim(), look, 7, subject || "Newsletter preview");
             if (r.ok) {
               notifyOk(r.message + (r.warnings.length ? ` (${r.warnings.length} warning${r.warnings.length > 1 ? "s" : ""})` : ""), "Test sent");
               onClose();

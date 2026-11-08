@@ -5,7 +5,7 @@ import { logger } from "../logging.js";
 import { resolveForEmail } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { htmlToText } from "../render/sanitize.js";
-import { getSection } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR, type Look } from "../settings.js";
 import { sendMail } from "./send.js";
 
 const log = logger("newsletter");
@@ -20,12 +20,22 @@ export interface NewsletterRow {
   send_as_bcc: number;
   all_recipients: number;
   enabled: number;
+  email_theme: string;
+  accent_color: string;
+  header_title: string;
+  footer_text: string;
   created_at: string;
   updated_at: string;
 }
 
 export function getNewsletterRow(db: DB, id: number): NewsletterRow | null {
   return (db.prepare("SELECT * FROM newsletters WHERE id = ?").get(id) as NewsletterRow | undefined) ?? null;
+}
+
+export function lookOf(row: NewsletterRow): Look {
+  const emailTheme = (EMAIL_THEMES as readonly string[]).includes(row.email_theme) ? (row.email_theme as EmailTheme) : DEFAULT_LOOK.emailTheme;
+  const accentColor = HEX_COLOR.test(row.accent_color) ? row.accent_color : DEFAULT_LOOK.accentColor;
+  return { emailTheme, accentColor, headerTitle: row.header_title ?? "", footerText: row.footer_text ?? "" };
 }
 
 export function cronOf(row: NewsletterRow): string {
@@ -124,7 +134,7 @@ export async function sendNewsletter(
 
     const days = row.history_days ?? getSection(db, "general").defaultHistoryDays;
     const subject = (opts.testTo ? "[Test] " : "") + (row.subject.trim() || row.name);
-    const rendered = await renderNewsletter(db, { templateHtml: tpl.html, days, subject });
+    const rendered = await renderNewsletter(db, { templateHtml: tpl.html, days, subject, look: lookOf(row) });
     const email = await resolveForEmail(db, rendered.html);
     const text = htmlToText(email.html);
     const warnings = [...rendered.warnings, ...email.warnings];

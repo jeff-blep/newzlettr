@@ -8,8 +8,7 @@ import { useSection } from "../../api/sections";
 import { notifyError, notifyOk } from "../../components/notify";
 
 export function PreviewModal({ newsletter, onClose }: { newsletter: Newsletter; onClose: () => void }) {
-  const content = useSection("content");
-  const auto = content.data?.emailTheme === "auto";
+  const auto = newsletter.emailTheme === "auto";
   const [scheme, setScheme] = useState<"light" | "dark">("light");
   const q = useQuery({
     queryKey: ["nl-preview", newsletter.id, auto ? scheme : "fixed"],

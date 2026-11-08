@@ -148,4 +148,27 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE recipients DROP COLUMN enabled;
     `,
   },
+  {
+    version: 5,
+    name: "per-newsletter look",
+    sql: `
+      ALTER TABLE newsletters ADD COLUMN email_theme TEXT NOT NULL DEFAULT 'dark';
+      ALTER TABLE newsletters ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#7c5cff';
+      -- Carry over whatever Settings > Content had, so existing newsletters look the same.
+      UPDATE newsletters SET
+        email_theme = coalesce((SELECT json_extract(value, '$.emailTheme') FROM settings WHERE key = 'content'), 'dark'),
+        accent_color = coalesce((SELECT json_extract(value, '$.accentColor') FROM settings WHERE key = 'content'), '#7c5cff');
+    `,
+  },
+  {
+    version: 6,
+    name: "per-newsletter header and footer",
+    sql: `
+      ALTER TABLE newsletters ADD COLUMN header_title TEXT NOT NULL DEFAULT '';
+      ALTER TABLE newsletters ADD COLUMN footer_text TEXT NOT NULL DEFAULT '';
+      UPDATE newsletters SET
+        header_title = coalesce((SELECT json_extract(value, '$.headerTitle') FROM settings WHERE key = 'content'), ''),
+        footer_text = coalesce((SELECT json_extract(value, '$.footerText') FROM settings WHERE key = 'content'), '');
+    `,
+  },
 ];

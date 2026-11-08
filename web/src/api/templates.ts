@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CardInfo, RenderResult, Template } from "../../../shared/types";
+import type { CardInfo, EmailTheme, RenderResult, Template } from "../../../shared/types";
 import { del, get, post, put } from "./client";
 
 const key = ["templates"] as const;
@@ -33,8 +33,13 @@ export function useTemplateMutations() {
   };
 }
 
-export const renderPreview = (html: string, days?: number, subject?: string, scheme?: "light" | "dark") =>
-  post<RenderResult>("/api/render/preview", { html, days, subject, scheme });
+export interface Look {
+  emailTheme: EmailTheme;
+  accentColor: string;
+}
 
-export const sendTest = (html: string, to: string, days?: number, subject?: string) =>
-  post<{ ok: boolean; message: string; warnings: string[] }>("/api/render/test-send", { html, to, days, subject });
+export const renderPreview = (html: string, look: Look, days?: number, scheme?: "light" | "dark") =>
+  post<RenderResult>("/api/render/preview", { html, days, scheme, ...look });
+
+export const sendTest = (html: string, to: string, look: Look, days?: number, subject?: string) =>
+  post<{ ok: boolean; message: string; warnings: string[] }>("/api/render/test-send", { html, to, days, subject, ...look });

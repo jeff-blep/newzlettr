@@ -8,7 +8,7 @@ import { resolveForEmail, resolveForPreview } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { htmlToText } from "../render/sanitize.js";
 import { CARDS } from "../render/tokens.js";
-import { getSection } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR } from "../settings.js";
 
 interface Row {
   id: number;
@@ -101,13 +101,21 @@ export function renderRouter(db: DB): Router {
     days: z.number().int().min(1).max(365).optional(),
     subject: z.string().max(200).optional(),
     scheme: z.enum(["light", "dark"]).optional(),
+    emailTheme: z.enum(EMAIL_THEMES).optional(),
+    accentColor: z.string().regex(HEX_COLOR).optional(),
+  });
+  // Template previews aren't tied to a newsletter: default header (server name) and no footer.
+  const lookFrom = (d: { emailTheme?: EmailTheme; accentColor?: string }) => ({
+    ...DEFAULT_LOOK,
+    emailTheme: d.emailTheme ?? DEFAULT_LOOK.emailTheme,
+    accentColor: d.accentColor ?? DEFAULT_LOOK.accentColor,
   });
 
   r.post("/preview", async (req, res) => {
     const p = input.safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
     const days = p.data.days ?? getSection(db, "general").defaultHistoryDays;
-    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject: p.data.subject, previewScheme: p.data.scheme });
+    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject: p.data.subject, previewScheme: p.data.scheme, look: lookFrom(p.data) });
     const html = resolveForPreview(out.html);
     res.json({ html, warnings: out.warnings, bytes: Buffer.byteLength(html) } satisfies RenderResult);
   });
@@ -117,7 +125,7 @@ export function renderRouter(db: DB): Router {
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
     const days = p.data.days ?? getSection(db, "general").defaultHistoryDays;
     const subject = `[Test] ${p.data.subject || "Newsletter preview"}`;
-    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject });
+    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject, look: lookFrom(p.data) });
     const email = await resolveForEmail(db, out.html);
     try {
       const sent = await sendMail(db, { to: [p.data.to], subject, html: email.html, text: htmlToText(email.html), attachments: email.attachments });

@@ -73,11 +73,9 @@ export interface ImagesSettings {
   folder: string;
 }
 
+export type EmailTheme = "dark" | "light" | "auto";
+
 export interface ContentSettings {
-  headerTitle: string;
-  emailTheme: "dark" | "light" | "auto";
-  footerText: string;
-  accentColor: string;
   itemsPerCard: number;
   recentMoviesMax: number;
   recentShowsMax: number;
@@ -284,6 +282,11 @@ export interface Newsletter {
   recipientIds: number[];
   /** People this newsletter would actually reach right now. */
   audienceCount: number;
+  emailTheme: EmailTheme;
+  accentColor: string;
+  /** Empty = "<Plex server name> Newsletter". */
+  headerTitle: string;
+  footerText: string;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -301,6 +304,11 @@ export interface NewsletterInput {
   allRecipients: boolean;
   listIds: number[];
   recipientIds: number[];
+  emailTheme: EmailTheme;
+  accentColor: string;
+  /** Empty = "<Plex server name> Newsletter". */
+  headerTitle: string;
+  footerText: string;
   enabled: boolean;
 }
 

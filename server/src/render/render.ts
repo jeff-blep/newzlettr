@@ -4,7 +4,7 @@ import { getStats } from "../data/stats.js";
 import { plexWebLink } from "../integrations/plex.js";
 import { logger } from "../logging.js";
 import { plexClient, plexMachineId } from "../services.js";
-import { effectiveTimezone, getSection } from "../settings.js";
+import { DEFAULT_LOOK, effectiveTimezone, getSection, type Look } from "../settings.js";
 import {
   type CardCtx,
   hostPickCard,
@@ -29,6 +29,8 @@ export interface RenderOptions {
   now?: Date;
   /** In-app preview only: show a "match device" email in its dark variant. */
   previewScheme?: "light" | "dark";
+  /** The newsletter's look (appearance, accent, header, footer). Defaults to dark/violet. */
+  look?: Partial<Look>;
 }
 
 export interface RenderedEmail {
@@ -44,8 +46,9 @@ export interface RenderedEmail {
  */
 export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<RenderedEmail> {
   const content = getSection(db, "content");
+  const look: Look = { ...DEFAULT_LOOK, ...opts.look };
   // "auto" renders the light design plus dark-mode CSS for mail apps that support it.
-  const t = themeFor(content.accentColor, content.emailTheme === "dark" ? "dark" : "light");
+  const t = themeFor(look.accentColor, look.emailTheme === "dark" ? "dark" : "light");
   const warnings: string[] = [];
   // Collapse runs of empty paragraphs (pasted text is full of them) into a single gap.
   const clean = sanitizeTemplate(opts.templateHtml).replace(/(?:<(p|div)>\s*(?:<br\s*\/?>\s*)*<\/\1>\s*){2,}/g, "<p><br></p>");
@@ -75,7 +78,7 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
         )
       : [],
     used.includes("HOST_PICK") ? loadHostPick(db, warnings) : null,
-    content.headerTitle ? null : plexClient(db).serverInfo().then((i) => i.friendlyName).catch(() => null),
+    look.headerTitle ? null : plexClient(db).serverInfo().then((i) => i.friendlyName).catch(() => null),
   ]);
   if (stats) warnings.push(...stats.errors);
 
@@ -118,7 +121,7 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
   body = `<div class="nz-text">${body}</div>`.replace(/<div class="nz-text">\s*(?:<br\s*\/?>\s*)*<\/div>/g, "");
   body = body.replace(/<div class="nz-text">/g, `<div style="font:400 16px/1.6 ${t.font};color:${t.text};margin:0 0 20px 0">`);
 
-  const title = content.headerTitle || `${serverName ?? "Plex"} Newsletter`;
+  const title = look.headerTitle || `${serverName ?? "Plex"} Newsletter`;
   const now = opts.now ?? new Date();
   const range = dateRange(now, days, effectiveTimezone(db));
 
@@ -128,9 +131,9 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
     range,
     subject: opts.subject ?? title,
     body,
-    footer: content.footerText,
-    mode: content.emailTheme,
-    previewScheme: content.emailTheme === "auto" ? opts.previewScheme : undefined,
+    footer: look.footerText,
+    mode: look.emailTheme,
+    previewScheme: look.emailTheme === "auto" ? opts.previewScheme : undefined,
   });
   if (warnings.length) log.warn({ warnings }, "rendered with warnings");
   return { html, warnings, cardsUsed: used };
