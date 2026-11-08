@@ -17,6 +17,8 @@ export function useSaveSection<S extends EditableSection>(section: S) {
     mutationFn: (patch: Partial<SettingsSections[S]>) => put<SettingsSections[S]>(`/api/settings/${section}`, patch),
     onSuccess: (data) => {
       qc.setQueryData(key(section), data);
+      // content changes (e.g. who's left out of watch stats) change the stats
+      if (section === "content") void qc.invalidateQueries({ queryKey: ["stats"] });
       // health re-runs server-side after a save; refresh the badge shortly after
       setTimeout(() => void qc.invalidateQueries({ queryKey: healthKey }), 3000);
     },

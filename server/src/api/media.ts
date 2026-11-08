@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { HostPick, MediaRef } from "../../../shared/types.js";
+import type { HostPick, MediaRef, WatchUser } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { getStats } from "../data/stats.js";
 import type { PlexItem } from "../integrations/plex.js";
 import { logger } from "../logging.js";
-import { plexClient } from "../services.js";
+import { plexClient, tautulliClient } from "../services.js";
 import { getSection } from "../settings.js";
 
 /** Plex metadata -> card-friendly ref. Episodes show "Show — S1E2 · Title". */
@@ -99,6 +99,16 @@ export function mediaRouter(db: DB): Router {
     ).run(p.data.plexItemId, p.data.note);
     log.info({ plexItemId: p.data.plexItemId }, "host pick saved");
     res.json(await readPick());
+  });
+
+  /** Plex users as Tautulli knows them (for "leave out of watch stats"). Names only - no emails. */
+  r.get("/watch-users", async (_req, res) => {
+    const users = await tautulliClient(db).users();
+    const out: WatchUser[] = users
+      .filter((u) => Number(u.user_id) > 0)
+      .map((u) => ({ userId: Number(u.user_id), name: u.friendly_name || u.username || `User ${u.user_id}`, isOwner: !!u.is_admin }))
+      .sort((a, b) => Number(b.isOwner) - Number(a.isOwner) || a.name.localeCompare(b.name));
+    res.json(out);
   });
 
   /* --------------------------------- stats -------------------------------- */

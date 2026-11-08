@@ -10,6 +10,7 @@ const ALLOWED = new Set([
   "get_children_metadata",
   "get_metadata",
   "get_libraries",
+  "get_users",
 ]);
 
 export interface HomeStatRow {
@@ -53,9 +54,28 @@ export interface RecentItem {
   section_id?: string | number;
 }
 
-interface PlaysSeries {
+export interface TautulliUser {
+  user_id: number;
+  friendly_name: string;
+  username: string;
+  is_admin: number;
+  is_active: number;
+}
+
+export interface PlaysSeries {
   categories: string[];
   series: { name: string; data: number[] }[];
+}
+
+/** Sums get_plays_by_date series, ignoring the aggregate "Total" series. */
+export function totalsFromSeries(plays: PlaysSeries, duration: PlaysSeries): { moviePlays: number; episodePlays: number; seconds: number } {
+  const real = (s: PlaysSeries) => s.series.filter((x) => !/^total$/i.test(x.name.trim()));
+  const sum = (s: PlaysSeries, re: RegExp) => real(s).filter((x) => re.test(x.name)).reduce((a, x) => a + x.data.reduce((b, n) => b + (Number(n) || 0), 0), 0);
+  return {
+    moviePlays: sum(plays, /movie/i),
+    episodePlays: sum(plays, /^tv$|^live tv$|episode|show/i),
+    seconds: real(duration).reduce((a, x) => a + x.data.reduce((b, n) => b + (Number(n) || 0), 0), 0),
+  };
 }
 
 export class TautulliClient {
@@ -90,23 +110,28 @@ export class TautulliClient {
     return this.call<{ tautulli_version: string }>("get_tautulli_info", {}, 8000);
   }
 
-  homeStats(days: number, count = 25) {
-    return this.call<HomeStat[]>("get_home_stats", { time_range: days, stats_type: "plays", stats_count: count, grouping: 0 });
+  /** Tautulli home stats; with `userId`, only that person's plays. */
+  homeStats(days: number, count = 25, userId?: number) {
+    return this.call<HomeStat[]>("get_home_stats", {
+      time_range: days,
+      stats_type: "plays",
+      stats_count: count,
+      grouping: 0,
+      ...(userId !== undefined ? { user_id: userId } : {}),
+    });
   }
 
-  /** Totals for the window: plays and watch time, split by Movies / TV. */
+  /**
+   * Totals for the window: plays and watch time, split by Movies / TV.
+   * Tautulli's series are "Movies", "TV", "Live TV" ... plus a "Total" series - which must
+   * NOT be added again (that double-counted hours watched before).
+   */
   async windowTotals(days: number): Promise<{ moviePlays: number; episodePlays: number; seconds: number }> {
     const [plays, duration] = await Promise.all([
       this.call<PlaysSeries>("get_plays_by_date", { time_range: days, y_axis: "plays", grouping: 0 }),
       this.call<PlaysSeries>("get_plays_by_date", { time_range: days, y_axis: "duration", grouping: 0 }),
     ]);
-    const sum = (s: PlaysSeries, re: RegExp) =>
-      s.series.filter((x) => re.test(x.name)).reduce((a, x) => a + x.data.reduce((b, n) => b + (Number(n) || 0), 0), 0);
-    return {
-      moviePlays: sum(plays, /movie/i),
-      episodePlays: sum(plays, /tv|episode|show/i),
-      seconds: duration.series.reduce((a, x) => a + x.data.reduce((b, n) => b + (Number(n) || 0), 0), 0),
-    };
+    return totalsFromSeries(plays, duration);
   }
 
   /** Recently added items newer than `sinceEpoch` (seconds). Tautulli returns newest first. */
@@ -116,6 +141,11 @@ export class TautulliClient {
       ...(mediaType ? { media_type: mediaType } : {}),
     });
     return (data.recently_added ?? []).filter((r) => Number(r.added_at) >= sinceEpoch);
+  }
+
+  async users(): Promise<TautulliUser[]> {
+    const data = await this.call<TautulliUser[]>("get_users");
+    return Array.isArray(data) ? data : [];
   }
 
   async childrenMetadata(ratingKey: string | number): Promise<RecentItem[]> {

@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { HostPick, IgnoredPerson, MediaRef, Recipient, RecipientImportResult, StatsResponse } from "../../../shared/types";
+import type { HostPick, IgnoredPerson, MediaRef, Recipient, RecipientImportResult, StatsResponse, WatchUser } from "../../../shared/types";
 import { del, get, post, put } from "./client";
 
 /* ------------------------------- recipients ------------------------------- */
@@ -77,4 +77,8 @@ export function useStats(days: number) {
     placeholderData: keepPreviousData,
     staleTime: 5 * 60_000,
   });
+}
+
+export function useWatchUsers() {
+  return useQuery({ queryKey: ["watch-users"], queryFn: () => get<WatchUser[]>("/api/watch-users"), staleTime: 5 * 60_000 });
 }

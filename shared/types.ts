@@ -83,6 +83,14 @@ export interface ContentSettings {
   excludedShows: string[];
   showSummaries: boolean;
   includeWatchLinks: boolean;
+  excludeOwnerPlays: boolean;
+  excludedUserIds: number[];
+}
+
+export interface WatchUser {
+  userId: number;
+  name: string;
+  isOwner: boolean;
 }
 
 export interface SettingsSections {
@@ -227,6 +235,8 @@ export interface StatsResponse {
   popularShows: MediaRef[];
   platforms: PlatformStat[];
   errors: string[];
+  /** People whose plays were left out (names), empty when nobody is excluded. */
+  excludedUsers: string[];
 }
 
 /* -------------------------------- host pick -------------------------------- */

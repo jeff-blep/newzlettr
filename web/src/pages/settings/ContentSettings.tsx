@@ -1,4 +1,5 @@
-import { Alert, Center, Checkbox, Loader, NumberInput, TagsInput } from "@mantine/core";
+import { Alert, Center, Checkbox, Loader, MultiSelect, NumberInput, TagsInput, Text } from "@mantine/core";
+import { useWatchUsers } from "../../api/media";
 import { useDraft, useSaveSection, useSection } from "../../api/sections";
 import { FormRow, SettingsSection } from "../../components/FormRow";
 import { notifyError, notifyOk } from "../../components/notify";
@@ -9,6 +10,8 @@ export function ContentSettings() {
   const q = useSection("content");
   const c = useDraft(q.data);
   const save = useSaveSection("content");
+  const watchUsers = useWatchUsers();
+  const owner = watchUsers.data?.find((u) => u.isOwner);
   const guard = useUnsavedChanges(c.dirty);
 
   if (q.error) return <Alert color="red">{String(q.error)}</Alert>;
@@ -47,6 +50,36 @@ export function ContentSettings() {
         </FormRow>
         <FormRow label="Watch Links" help="Titles and posters link to the item in Plex Web (works for anyone with access to your server).">
           <Checkbox label="Link titles to Plex" checked={d.includeWatchLinks} onChange={(e) => c.set("includeWatchLinks", e.currentTarget.checked)} />
+        </FormRow>
+      </SettingsSection>
+
+      <SettingsSection title="Most Watched">
+        <FormRow
+          label="Leave Out the Host"
+          help="Your own plays won't count toward the Most watched movies and shows lists (in newsletters and on the Stats page). Everything else — plays, hours, platforms, Popular — stays exactly as Tautulli reports it."
+        >
+          <Checkbox
+            label={`Leave out the server owner's plays${owner ? ` (${owner.name})` : ""}`}
+            checked={d.excludeOwnerPlays}
+            onChange={(e) => c.set("excludeOwnerPlays", e.currentTarget.checked)}
+          />
+        </FormRow>
+        <FormRow label="Also Leave Out" help="Anyone else whose plays shouldn't count toward Most watched (e.g. a TV that's left playing in the background).">
+          <MultiSelect
+            placeholder={watchUsers.isPending ? "Loading Plex users…" : "Pick people"}
+            data={(watchUsers.data ?? []).filter((u) => !u.isOwner).map((u) => ({ value: String(u.userId), label: u.name }))}
+            value={d.excludedUserIds.map(String)}
+            onChange={(v) => c.set("excludedUserIds", v.map(Number))}
+            searchable
+            clearable
+            maw={520}
+            nothingFoundMessage="Nobody matches"
+          />
+          {watchUsers.error && (
+            <Text size="xs" c="red" mt={4}>
+              Couldn't load users from Tautulli: {String(watchUsers.error)}
+            </Text>
+          )}
         </FormRow>
       </SettingsSection>
 

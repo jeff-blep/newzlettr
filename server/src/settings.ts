@@ -58,6 +58,10 @@ export const contentSchema = z.object({
   /** Show titles never listed under recently added (e.g. daily shows). Case-insensitive. */
   excludedShows: z.array(z.string().trim().min(1)).max(200).default([]),
   showSummaries: z.boolean().default(true),
+  /** Leave the server owner's plays out of the "Most watched" movie and show lists (nothing else). */
+  excludeOwnerPlays: z.boolean().default(false),
+  /** Tautulli user ids whose plays are also left out of the "Most watched" lists. */
+  excludedUserIds: z.array(z.number().int()).max(500).default([]),
   includeWatchLinks: z.boolean().default(true),
 });
 
