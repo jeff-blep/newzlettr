@@ -31,7 +31,7 @@ export function hostPickCard(c: CardCtx, d: HostPickData | null): string {
     ? `<div style="margin:14px 0 0 0;padding:10px 14px;border-left:3px solid ${t.accent};background:${t.cardAlt};border-radius:0 8px 8px 0;font:italic 400 15px/1.55 ${t.font};color:${t.text}">${esc(d.note).replace(/\n/g, "<br>")}</div>`
     : "";
   const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-    <td width="150" valign="top" style="padding-right:18px">${link(href, poster(m.thumb, 150, m.title, 10), t.text)}</td>
+    <td width="150" valign="top" style="padding-right:18px">${link(href, poster(t, m.thumb, 150, m.title, 10), t.text)}</td>
     <td valign="top">
       <div style="font:700 22px/1.25 ${t.font};color:${t.text}">${link(href, esc(m.title), t.text)}</div>
       ${m.subtitle ? `<div style="font:400 14px ${t.font};color:${t.muted};margin-top:2px">${esc(m.subtitle)}</div>` : ""}
@@ -82,7 +82,7 @@ function rankedRows(c: CardCtx, items: MediaRef[], value: (m: MediaRef) => strin
       const href = c.watchLink(m.ratingKey);
       return `<tr>
         <td width="26" valign="middle" style="font:700 15px ${t.font};color:${t.accent};padding:6px 0">${i + 1}</td>
-        <td width="54" valign="middle" style="padding:6px 12px 6px 0">${link(href, poster(m.thumb, 42, m.title, 4), t.text)}</td>
+        <td width="54" valign="middle" style="padding:6px 12px 6px 0">${link(href, poster(t, m.thumb, 42, m.title, 4), t.text)}</td>
         <td valign="middle" style="padding:6px 0">
           <div style="font:600 15px/1.3 ${t.font};color:${t.text}">${link(href, esc(m.title), t.text)}</div>
           ${m.year ? `<div style="font:400 12px ${t.font};color:${t.muted}">${m.year}</div>` : ""}
@@ -113,7 +113,7 @@ export function platformsCard(c: CardCtx, items: PlatformStat[]): string {
     .map((p) => {
       const pct = Math.max(2, Math.round((p.plays / max) * 100));
       return `<tr>
-        <td width="44" valign="middle" style="padding:7px 12px 7px 0">${img(assetImg(`platforms/${p.icon}`), 32, 32, p.name, 8)}</td>
+        <td width="44" valign="middle" style="padding:7px 12px 7px 0">${img(t, assetImg(`platforms/${p.icon}`), 32, 32, p.name, 8)}</td>
         <td valign="middle" style="padding:7px 0">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td style="font:600 14px ${t.font};color:${t.text}">${esc(p.name)}</td>
@@ -142,7 +142,7 @@ export function recentMoviesCard(c: CardCtx, movies: RecentMovie[]): string {
       const href = c.watchLink(m.ratingKey);
       const meta = [m.year, m.genres[0]].filter(Boolean).join(" · ");
       return `<td width="33%" valign="top" style="padding:0 6px 18px 6px">
-        ${link(href, poster(m.thumb, 160, m.title, 8), t.text)}
+        ${link(href, poster(t, m.thumb, 160, m.title, 8), t.text)}
         <div style="font:600 14px/1.3 ${t.font};color:${t.text};margin-top:8px">${link(href, esc(m.title), t.text)}</div>
         ${meta ? `<div style="font:400 12px ${t.font};color:${t.muted};margin-top:2px">${esc(meta)}</div>` : ""}
         ${c.showSummaries && m.summary ? `<div style="font:400 12px/1.45 ${t.font};color:${t.faint};margin-top:6px">${esc(truncate(m.summary, 110))}</div>` : ""}
@@ -169,7 +169,7 @@ export function recentShowsCard(c: CardCtx, shows: RecentShow[]): string {
       const lines = shown
         .map((e) => `<div style="font:400 13px/1.5 ${t.font};color:${t.muted}">${esc(e.label)}</div>`)
         .join("");
-      return `<tr><td valign="top" width="64" style="padding:${i ? 14 : 0}px 14px 0 0">${link(href, poster(s.thumb, 60, s.title, 6), t.text)}</td>
+      return `<tr><td valign="top" width="64" style="padding:${i ? 14 : 0}px 14px 0 0">${link(href, poster(t, s.thumb, 60, s.title, 6), t.text)}</td>
         <td valign="top" style="padding:${i ? 14 : 0}px 0 0 0;${i ? `border-top:1px solid ${t.cardAlt};` : ""}">
           <div style="font:600 15px/1.3 ${t.font};color:${t.text};${i ? "padding-top:0;" : ""}">${link(href, esc(s.title), t.text)}</div>
           <div style="font:600 12px ${t.font};color:${t.accent};margin:2px 0 4px 0">${esc(count)}</div>

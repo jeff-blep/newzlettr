@@ -33,7 +33,8 @@ export function useTemplateMutations() {
   };
 }
 
-export const renderPreview = (html: string, days?: number, subject?: string) => post<RenderResult>("/api/render/preview", { html, days, subject });
+export const renderPreview = (html: string, days?: number, subject?: string, scheme?: "light" | "dark") =>
+  post<RenderResult>("/api/render/preview", { html, days, subject, scheme });
 
 export const sendTest = (html: string, to: string, days?: number, subject?: string) =>
   post<{ ok: boolean; message: string; warnings: string[] }>("/api/render/test-send", { html, to, days, subject });

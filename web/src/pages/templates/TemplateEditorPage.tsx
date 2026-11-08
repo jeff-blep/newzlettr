@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, Center, Grid, Group, Loader, Modal, Select, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { Alert, Box, Button, Center, Grid, Group, Loader, Modal, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconAlertTriangle, IconRefresh, IconSend } from "@tabler/icons-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -102,6 +102,9 @@ export function TemplateEditorPage() {
 
 function Preview({ html }: { html: string }) {
   const [days, setDays] = useState("7");
+  const content = useSection("content");
+  const auto = content.data?.emailTheme === "auto";
+  const [scheme, setScheme] = useState<"light" | "dark">("light");
   const [debounced] = useDebouncedValue(html, 900);
   const [state, setState] = useState<{ html: string; warnings: string[]; loading: boolean; error?: string }>({ html: "", warnings: [], loading: true });
   const [nonce, setNonce] = useState(0);
@@ -110,10 +113,10 @@ function Preview({ html }: { html: string }) {
   useEffect(() => {
     const mine = ++seq.current;
     setState((s) => ({ ...s, loading: true }));
-    renderPreview(debounced, Number(days))
+    renderPreview(debounced, Number(days), undefined, auto ? scheme : undefined)
       .then((r) => mine === seq.current && setState({ html: r.html, warnings: r.warnings, loading: false }))
       .catch((e) => mine === seq.current && setState((s) => ({ ...s, loading: false, error: String(e) })));
-  }, [debounced, days, nonce]);
+  }, [debounced, days, nonce, scheme, auto, content.data?.emailTheme, content.data?.accentColor]);
 
   return (
     <Stack gap="xs" pos="sticky" top={130}>
@@ -123,6 +126,19 @@ function Preview({ html }: { html: string }) {
           {state.loading && <Loader size="xs" />}
         </Group>
         <Group gap="xs">
+          {auto && (
+            <Tooltip label="“Match reader's device” is on — check both looks">
+              <SegmentedControl
+                size="xs"
+                value={scheme}
+                onChange={(v) => setScheme(v as "light" | "dark")}
+                data={[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ]}
+              />
+            </Tooltip>
+          )}
           <Select
             size="xs"
             w={130}

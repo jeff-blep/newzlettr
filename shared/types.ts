@@ -75,6 +75,7 @@ export interface ImagesSettings {
 
 export interface ContentSettings {
   headerTitle: string;
+  emailTheme: "dark" | "light" | "auto";
   footerText: string;
   accentColor: string;
   itemsPerCard: number;

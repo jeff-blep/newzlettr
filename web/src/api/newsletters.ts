@@ -26,7 +26,8 @@ export function useNewsletterMutations() {
   };
 }
 
-export const previewNewsletter = (id: number) => get<RenderResult>(`/api/newsletters/${id}/preview`);
+export const previewNewsletter = (id: number, scheme?: "light" | "dark") =>
+  get<RenderResult>(`/api/newsletters/${id}/preview${scheme ? `?scheme=${scheme}` : ""}`);
 
 export function useActivity(status: string | null, page: number, sort: { key: string; dir: string }, pageSize = 25) {
   return useQuery({

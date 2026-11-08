@@ -1,6 +1,9 @@
 /** Email-safe HTML building blocks. Everything is tables + inline styles (Gmail/Outlook). */
 
+export type Scheme = "dark" | "light";
+
 export interface Theme {
+  scheme: Scheme;
   accent: string;
   page: string;
   container: string;
@@ -9,12 +12,16 @@ export interface Theme {
   text: string;
   muted: string;
   faint: string;
+  /** Box shown where a poster is missing. */
+  placeholder: string;
   font: string;
 }
 
-export function themeFor(accent: string): Theme {
-  return {
-    accent,
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+/** Every colour is unique per palette: the "match device" CSS maps light -> dark by exact value. */
+const PALETTES: Record<Scheme, Omit<Theme, "accent" | "font" | "scheme">> = {
+  dark: {
     page: "#111214",
     container: "#18191c",
     card: "#222327",
@@ -22,8 +29,44 @@ export function themeFor(accent: string): Theme {
     text: "#e8e8ed",
     muted: "#a0a1ab",
     faint: "#6c6d76",
-    font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  };
+    placeholder: "#2f3036",
+  },
+  light: {
+    page: "#eef0f4",
+    container: "#ffffff",
+    card: "#fcfcfd",
+    cardAlt: "#f0f1f5",
+    text: "#1d1e24",
+    muted: "#5b5c68",
+    faint: "#8a8b97",
+    placeholder: "#dcdde4",
+  },
+};
+
+export function themeFor(accent: string, scheme: Scheme = "dark"): Theme {
+  return { scheme, accent, font: FONT, ...PALETTES[scheme] };
+}
+
+/**
+ * CSS that turns the light design dark where the mail app supports prefers-color-scheme
+ * (Apple Mail, iOS Mail, Outlook for Mac/iOS...). Gmail ignores it and shows light.
+ * Rules match the exact light colour values in inline styles and swap in the dark ones.
+ */
+export function darkModeCss(forceDark = false): string {
+  const light = PALETTES.light;
+  const dark = PALETTES.dark;
+  const keys = Object.keys(light) as (keyof typeof light)[];
+  const rules: string[] = [];
+  for (const k of keys) {
+    const from = light[k];
+    const to = dark[k];
+    rules.push(`[style*="background:${from}"]{background:${to}!important}`);
+    rules.push(`[style*="color:${from}"]{color:${to}!important}`);
+    rules.push(`[style*="solid ${from}"]{border-color:${to}!important}`);
+  }
+  const body = `body,.nz-bg{background:${dark.page}!important} ${rules.join(" ")}`;
+  // forceDark: used by the in-app preview to show the dark variant regardless of the viewer's OS.
+  return forceDark ? body : `@media (prefers-color-scheme: dark){${body}}`;
 }
 
 export function esc(s: unknown): string {
@@ -39,17 +82,17 @@ export function esc(s: unknown): string {
 export const plexImg = (path: string, w: number, h: number) => `nzimg://plex?path=${encodeURIComponent(path)}&w=${w}&h=${h}`;
 export const assetImg = (file: string) => `nzimg://asset/${file}`;
 
-export function img(src: string, w: number, h: number, alt = "", radius = 6): string {
-  return `<img src="${esc(src)}" width="${w}" height="${h}" alt="${esc(alt)}" style="display:block;width:${w}px;height:${h}px;max-width:100%;border:0;border-radius:${radius}px;object-fit:cover;background:#2f3036">`;
+export function img(t: Theme, src: string, w: number, h: number, alt = "", radius = 6): string {
+  return `<img src="${esc(src)}" width="${w}" height="${h}" alt="${esc(alt)}" style="display:block;width:${w}px;height:${h}px;max-width:100%;border:0;border-radius:${radius}px;object-fit:cover;background:${t.placeholder}">`;
 }
 
 /** Poster with a neutral box when there's no image. */
-export function poster(thumb: string | undefined, w: number, alt = "", radius = 6): string {
+export function poster(t: Theme, thumb: string | undefined, w: number, alt = "", radius = 6): string {
   const h = Math.round(w * 1.5);
   if (!thumb) {
-    return `<div style="width:${w}px;height:${h}px;border-radius:${radius}px;background:#2f3036"></div>`;
+    return `<div style="width:${w}px;height:${h}px;border-radius:${radius}px;background:${t.placeholder}"></div>`;
   }
-  return img(plexImg(thumb, w * 2, h * 2), w, h, alt, radius);
+  return img(t, plexImg(thumb, w * 2, h * 2), w, h, alt, radius);
 }
 
 export function link(href: string | null | undefined, inner: string, color: string): string {
@@ -59,7 +102,7 @@ export function link(href: string | null | undefined, inner: string, color: stri
 export function button(t: Theme, href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px"><tr>
     <td style="border-radius:8px;background:${t.accent}">
-      <a href="${esc(href)}" style="display:inline-block;padding:10px 18px;font:600 14px ${t.font};color:#ffffff;text-decoration:none;border-radius:8px">${esc(label)}</a>
+      <a href="${esc(href)}" style="display:inline-block;padding:10px 18px;font:600 14px ${t.font};color:#fff;text-decoration:none;border-radius:8px">${esc(label)}</a>
     </td></tr></table>`;
 }
 

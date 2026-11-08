@@ -100,13 +100,14 @@ export function renderRouter(db: DB): Router {
     html: z.string().max(500_000),
     days: z.number().int().min(1).max(365).optional(),
     subject: z.string().max(200).optional(),
+    scheme: z.enum(["light", "dark"]).optional(),
   });
 
   r.post("/preview", async (req, res) => {
     const p = input.safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
     const days = p.data.days ?? getSection(db, "general").defaultHistoryDays;
-    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject: p.data.subject });
+    const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject: p.data.subject, previewScheme: p.data.scheme });
     const html = resolveForPreview(out.html);
     res.json({ html, warnings: out.warnings, bytes: Buffer.byteLength(html) } satisfies RenderResult);
   });

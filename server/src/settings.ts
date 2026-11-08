@@ -53,6 +53,8 @@ export const contentSchema = z.object({
   /** Shown in the email header. Empty = "<Plex server name> Newsletter". */
   headerTitle: z.string().trim().max(80).default(""),
   footerText: z.string().trim().max(500).default(""),
+  /** dark / light = that design for everyone; auto = light, switching to dark where the mail app supports it. */
+  emailTheme: z.enum(["dark", "light", "auto"]).default("dark"),
   accentColor: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #7c5cff")

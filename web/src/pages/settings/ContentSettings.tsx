@@ -1,4 +1,4 @@
-import { Alert, Center, Checkbox, ColorInput, Loader, NumberInput, TagsInput, Textarea, TextInput } from "@mantine/core";
+import { Alert, Center, Checkbox, ColorInput, Loader, NumberInput, SegmentedControl, TagsInput, Textarea, TextInput } from "@mantine/core";
 import { useDraft, useSaveSection, useSection } from "../../api/sections";
 import { FormRow, SettingsSection } from "../../components/FormRow";
 import { notifyError, notifyOk } from "../../components/notify";
@@ -34,6 +34,26 @@ export function ContentSettings() {
       />
 
       <SettingsSection title="Look">
+        <FormRow
+          label="Email Appearance"
+          help={
+            d.emailTheme === "auto"
+              ? "Sends the light design with instructions to switch to dark when the reader's device is in dark mode. Works in Apple Mail (iPhone, iPad, Mac), Outlook for Mac/iOS and others. Gmail ignores this: Gmail on the web shows light, and the Gmail app applies its own recolouring."
+              : d.emailTheme === "dark"
+                ? "Everyone gets the dark design. Mail apps that force dark mode (some Gmail/Outlook phone apps) may still adjust colours."
+                : "Everyone gets the light design, and Apple Mail is told not to darken it. Some Gmail/Outlook phone apps in dark mode may still recolour it."
+          }
+        >
+          <SegmentedControl
+            value={d.emailTheme}
+            onChange={(v) => c.set("emailTheme", v as typeof d.emailTheme)}
+            data={[
+              { value: "dark", label: "Dark" },
+              { value: "light", label: "Light" },
+              { value: "auto", label: "Match reader's device" },
+            ]}
+          />
+        </FormRow>
         <FormRow label="Header Title" help="Big title at the top of every email. Leave empty to use “<your Plex server name> Newsletter”.">
           <TextInput value={d.headerTitle} onChange={(e) => c.set("headerTitle", e.currentTarget.value)} placeholder="My Plex Newsletter" maw={420} />
         </FormRow>

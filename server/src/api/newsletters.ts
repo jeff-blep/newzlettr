@@ -162,7 +162,8 @@ export function newslettersRouter(db: DB): Router {
     const tpl = row.template_id ? (db.prepare("SELECT html FROM templates WHERE id = ?").get(row.template_id) as { html: string } | undefined) : undefined;
     if (!tpl) return res.status(400).json({ error: "This newsletter has no template" });
     const days = row.history_days ?? getSection(db, "general").defaultHistoryDays;
-    const out = await renderNewsletter(db, { templateHtml: tpl.html, days, subject: row.subject || row.name });
+    const previewScheme = req.query.scheme === "dark" ? "dark" : req.query.scheme === "light" ? "light" : undefined;
+    const out = await renderNewsletter(db, { templateHtml: tpl.html, days, subject: row.subject || row.name, previewScheme });
     const html = resolveForPreview(out.html);
     res.json({ html, warnings: out.warnings, bytes: Buffer.byteLength(html) });
   });

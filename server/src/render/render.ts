@@ -15,7 +15,7 @@ import {
   recentShowsCard,
   serverTotalsCard,
 } from "./cards.js";
-import { esc, themeFor } from "./html.js";
+import { darkModeCss, esc, themeFor } from "./html.js";
 import { sanitizeTemplate } from "./sanitize.js";
 import { type CardId, cardForToken, TOKEN_RE, tokensIn } from "./tokens.js";
 
@@ -27,6 +27,8 @@ export interface RenderOptions {
   /** Used for the <title> and preheader. */
   subject?: string;
   now?: Date;
+  /** In-app preview only: show a "match device" email in its dark variant. */
+  previewScheme?: "light" | "dark";
 }
 
 export interface RenderedEmail {
@@ -42,7 +44,8 @@ export interface RenderedEmail {
  */
 export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<RenderedEmail> {
   const content = getSection(db, "content");
-  const t = themeFor(content.accentColor);
+  // "auto" renders the light design plus dark-mode CSS for mail apps that support it.
+  const t = themeFor(content.accentColor, content.emailTheme === "dark" ? "dark" : "light");
   const warnings: string[] = [];
   // Collapse runs of empty paragraphs (pasted text is full of them) into a single gap.
   const clean = sanitizeTemplate(opts.templateHtml).replace(/(?:<(p|div)>\s*(?:<br\s*\/?>\s*)*<\/\1>\s*){2,}/g, "<p><br></p>");
@@ -126,6 +129,8 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
     subject: opts.subject ?? title,
     body,
     footer: content.footerText,
+    mode: content.emailTheme,
+    previewScheme: content.emailTheme === "auto" ? opts.previewScheme : undefined,
   });
   if (warnings.length) log.warn({ warnings }, "rendered with warnings");
   return { html, warnings, cardsUsed: used };
@@ -171,19 +176,39 @@ export function dateRange(now: Date, days: number, timeZone: string): string {
   return days <= 1 ? f(now, true) : `${f(start, false)} – ${f(now, true)}`;
 }
 
-function layout(p: { t: ReturnType<typeof themeFor>; title: string; range: string; subject: string; body: string; footer: string }): string {
+function layout(p: {
+  t: ReturnType<typeof themeFor>;
+  title: string;
+  range: string;
+  subject: string;
+  body: string;
+  footer: string;
+  mode: "dark" | "light" | "auto";
+  /**
+   * In-app preview of an "auto" email: the app UI is dark, so the preview frame would always
+   * match prefers-color-scheme:dark. "light" omits the dark rules; "dark" applies them unconditionally.
+   */
+  previewScheme?: "light" | "dark";
+}): string {
   const { t } = p;
   const footer = p.footer ? `<div style="margin-bottom:8px">${esc(p.footer).replace(/\n/g, "<br>")}</div>` : "";
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">
+${
+  p.mode === "dark"
+    ? `<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">`
+    : p.mode === "light"
+      ? `<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light">`
+      : `<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">`
+}
 <title>${esc(p.subject)}</title>
 <style>
   body{margin:0;padding:0;background:${t.page}}
   a{color:${t.accent}}
   .nz-body a{color:${t.accent};text-decoration:underline}
   @media (max-width:620px){ .nz-wrap{width:100%!important} .nz-pad{padding:16px!important} }
+  ${p.mode === "auto" && p.previewScheme !== "light" ? darkModeCss(p.previewScheme === "dark") : ""}
 </style>
 </head>
 <body style="margin:0;padding:0;background:${t.page}">

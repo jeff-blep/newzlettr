@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Center, Group, Loader, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Box, Button, Center, Group, Loader, Modal, SegmentedControl, Stack, Text, TextInput } from "@mantine/core";
 import { IconSend } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Newsletter } from "../../../../shared/types";
@@ -8,7 +8,14 @@ import { useSection } from "../../api/sections";
 import { notifyError, notifyOk } from "../../components/notify";
 
 export function PreviewModal({ newsletter, onClose }: { newsletter: Newsletter; onClose: () => void }) {
-  const q = useQuery({ queryKey: ["nl-preview", newsletter.id], queryFn: () => previewNewsletter(newsletter.id), staleTime: 0 });
+  const content = useSection("content");
+  const auto = content.data?.emailTheme === "auto";
+  const [scheme, setScheme] = useState<"light" | "dark">("light");
+  const q = useQuery({
+    queryKey: ["nl-preview", newsletter.id, auto ? scheme : "fixed"],
+    queryFn: () => previewNewsletter(newsletter.id, auto ? scheme : undefined),
+    staleTime: 0,
+  });
   return (
     <Modal opened onClose={onClose} title={`Preview — ${newsletter.subject || newsletter.name}`} size={720} centered>
       {q.isPending ? (
@@ -19,6 +26,19 @@ export function PreviewModal({ newsletter, onClose }: { newsletter: Newsletter; 
         <Alert color="red">{String(q.error)}</Alert>
       ) : (
         <Stack gap="xs">
+          {auto && (
+            <Group justify="flex-end">
+              <SegmentedControl
+                size="xs"
+                value={scheme}
+                onChange={(v) => setScheme(v as "light" | "dark")}
+                data={[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ]}
+              />
+            </Group>
+          )}
           {q.data.warnings.map((w) => (
             <Alert key={w} color="yellow" variant="light" p="xs">
               <Text size="xs">{w}</Text>

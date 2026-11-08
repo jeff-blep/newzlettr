@@ -124,7 +124,7 @@ export async function resolveForEmail(db: DB, html: string): Promise<{ html: str
     if (r) return tag.replace(url, r);
     const w = /width="(\d+)"/.exec(tag)?.[1] ?? "100";
     const h = /height="(\d+)"/.exec(tag)?.[1] ?? "150";
-    return `<div style="width:${w}px;height:${h}px;border-radius:6px;background:#2f3036"></div>`;
+    return `<div style="width:${w}px;height:${h}px;border-radius:6px;background:#80818a"></div>`;
   });
   return { html: out, attachments, warnings };
 }
