@@ -4,6 +4,7 @@ import { cloudinaryConfigured } from "./integrations/cloudinary.js";
 import { createTransport, describeSmtpError, smtpConfigured } from "./integrations/mail.js";
 import { plexClient, tautulliClient } from "./services.js";
 import { getSection } from "./settings.js";
+import { logger } from "./logging.js";
 
 /** Extra checks contributed by later subsystems (newsletters, sends). */
 type Contributor = (db: DB) => HealthCheck[] | Promise<HealthCheck[]>;
@@ -84,4 +85,12 @@ export async function runHealthChecks(db: DB): Promise<HealthResponse> {
 
   last = { checkedAt: new Date().toISOString(), checks };
   return last;
+}
+
+/**
+ * Re-run health checks after a change without making the caller wait. Failures (Plex down,
+ * or the database already closed during shutdown/tests) are logged, never left unhandled.
+ */
+export function refreshHealthInBackground(db: DB): void {
+  runHealthChecks(db).catch((e: unknown) => logger("health").debug({ err: e }, "background health check failed"));
 }

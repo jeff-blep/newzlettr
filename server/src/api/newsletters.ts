@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Newsletter, SchedulePreview, SendRecord } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { tx } from "../db/index.js";
-import { runHealthChecks } from "../health.js";
+import { refreshHealthInBackground } from "../health.js";
 import { logger } from "../logging.js";
 import { audience, cronOf, getNewsletterRow, lookOf, type NewsletterRow, sendNewsletter, toSendRecord } from "../mail/newsletter.js";
 import { resolveForPreview } from "../render/images.js";
@@ -156,7 +156,7 @@ export function newslettersRouter(db: DB): Router {
     if ("error" in v) return res.status(400).json({ error: v.error });
     const id = write(null, v.data);
     log.info({ id, enabled: v.data.enabled }, "newsletter created");
-    void runHealthChecks(db);
+    refreshHealthInBackground(db);
     res.status(201).json(one(id));
   });
 
@@ -167,7 +167,7 @@ export function newslettersRouter(db: DB): Router {
     if ("error" in v) return res.status(400).json({ error: v.error });
     write(id, v.data);
     log.info({ id, enabled: v.data.enabled }, "newsletter saved");
-    void runHealthChecks(db);
+    refreshHealthInBackground(db);
     res.json(one(id));
   });
 
@@ -180,7 +180,7 @@ export function newslettersRouter(db: DB): Router {
     );
     if (!n) return res.status(404).json({ error: "not found" });
     log.info({ id, enabled }, "newsletter toggled");
-    void runHealthChecks(db);
+    refreshHealthInBackground(db);
     res.json(one(id));
   });
 

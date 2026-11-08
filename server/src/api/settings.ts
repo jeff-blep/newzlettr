@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import type { GeneralSettingsResponse, TestResult } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
-import { invalidateSmtpHealth, runHealthChecks } from "../health.js";
+import { invalidateSmtpHealth, refreshHealthInBackground } from "../health.js";
 import { clearFolder, clearUsageCache, cloudinaryUsage, pingCloudinary } from "../integrations/cloudinary.js";
 import { normalizeBaseUrl } from "../integrations/http.js";
 import { testSmtp } from "../integrations/mail.js";
@@ -78,7 +78,7 @@ export function settingsRouter(db: DB): Router {
     const saved = setSectionTyped(db, s, patch);
     log.info({ section: s, changed: Object.keys(patch) }, "settings saved");
     if (s === "smtp") invalidateSmtpHealth();
-    void runHealthChecks(db);
+    refreshHealthInBackground(db);
     res.json(maskSection(s, saved));
   });
 
