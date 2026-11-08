@@ -15,7 +15,6 @@ export interface GeneralSettings {
   authMethod: AuthMethod;
   /** IANA zone used for schedules; "" = use the container's TZ. */
   timezone: string;
-  defaultHistoryDays: number;
   logLevel: "trace" | "debug" | "info" | "warn" | "error";
   /** Public base URL of this app (used for links in emails). Optional. */
   applicationUrl: string;
@@ -281,8 +280,7 @@ export interface Newsletter {
   templateName: string | null;
   cron: string;
   scheduleDescription: string;
-  /** null = use Settings > General default */
-  historyDays: number | null;
+  historyDays: number;
   sendAsBcc: boolean;
   /** true = everyone on the Recipients page. */
   allRecipients: boolean;
@@ -309,7 +307,7 @@ export interface NewsletterInput {
   subject: string;
   templateId: number | null;
   cron: string;
-  historyDays: number | null;
+  historyDays: number;
   sendAsBcc: boolean;
   allRecipients: boolean;
   listIds: number[];

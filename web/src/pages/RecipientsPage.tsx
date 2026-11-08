@@ -50,9 +50,10 @@ const SOURCE: Record<Recipient["source"], { label: string; color: string }> = {
 
 const ACCESS: Record<PlexAccessStatus | "unknown", { label: string; color: string; help: string }> = {
   libraries: { label: "", color: "green", help: "Has these libraries" },
-  no_libraries: { label: "Friend · no libraries", color: "yellow", help: "Still a Plex friend, but every library is switched off" },
+  // "Friend with every library off" and "not shared at all" mean the same thing in practice.
+  no_libraries: { label: "No library access", color: "red", help: "Still a Plex friend, but every library is switched off" },
   invited: { label: "Invite pending", color: "blue", help: "Invited to your server but hasn't accepted yet" },
-  no_access: { label: "No Plex access", color: "red", help: "Not shared on your Plex server (removed, or never added)" },
+  no_access: { label: "No library access", color: "red", help: "Not shared on your Plex server (removed, or never added)" },
   unknown: { label: "Not checked", color: "gray", help: "Click “Refresh Plex access” to check" },
 };
 
@@ -70,7 +71,7 @@ export function PlexAccessBadge({ access }: { access: Recipient["plexAccess"] })
   );
 }
 
-type AccessFilter = "all" | "libraries" | "no_libraries" | "no_access";
+type AccessFilter = "all" | "libraries" | "no_access";
 
 /** What a remove dialog is about to act on. */
 type Removal = { ids: number[]; label: string; mode: "ignore" | "delete" };
@@ -179,7 +180,7 @@ export function RecipientsPage() {
                 m.syncPlex.mutate(undefined, {
                   onSuccess: (s) =>
                     notifyOk(
-                      `${s.libraries} with libraries · ${s.noLibraries} friends without libraries · ${s.invited} invite${s.invited === 1 ? "" : "s"} pending · ${s.noAccess} without Plex access.`,
+                      `${s.libraries} with library access · ${s.noLibraries + s.noAccess + s.invited} without${s.invited ? ` (${s.invited} invite${s.invited === 1 ? "" : "s"} pending)` : ""}.`,
                       "Plex access refreshed",
                     ),
                   onError: (e) => notifyError(e, "Couldn't check Plex"),
@@ -231,9 +232,8 @@ export function RecipientsPage() {
             onChange={(v) => setAccess(v as AccessFilter)}
             data={[
               { value: "all", label: `All (${data.length})` },
-              { value: "libraries", label: `With libraries (${count("libraries")})` },
-              { value: "no_libraries", label: `No libraries (${count("no_libraries")})` },
-              { value: "no_access", label: `No access (${count("no_access")})` },
+              { value: "libraries", label: `Library Access (${count("libraries")})` },
+              { value: "no_access", label: `No Library Access (${count("no_access")})` },
             ]}
           />
           <Select
@@ -540,17 +540,16 @@ function PersonModal({ recipient, onClose }: { recipient: Recipient | null; onCl
   );
 }
 
-/** Filter bucket for a recipient. Invites count as "no access" until accepted; unchecked = all only. */
+/** Filter bucket: Library Access, or No Library Access (friend with libraries off, not shared, or invite pending). */
 function accessGroup(r: Recipient): AccessFilter | "unknown" {
   const st = r.plexAccess?.status;
   if (!st) return "unknown";
-  if (st === "invited") return "no_access";
-  return st;
+  return st === "libraries" ? "libraries" : "no_access";
 }
 
 /** Sort order for the access column: with libraries (by library list), no libraries, invited, no access; unchecked last. */
 function accessSortKey(r: Recipient): string | null {
   const a = r.plexAccess;
   if (!a) return null;
-  return { libraries: `1 ${a.libraries.join(" ")}`, no_libraries: "2", invited: "3", no_access: "4" }[a.status];
+  return { libraries: `1 ${a.libraries.join(" ")}`, invited: "2", no_libraries: "3", no_access: "3" }[a.status];
 }

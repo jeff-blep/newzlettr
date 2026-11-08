@@ -22,7 +22,7 @@ import { notifyError, notifyOk } from "../../components/notify";
 import { PageToolbar } from "../../components/PageToolbar";
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 
-const EDITABLE: (keyof GS)[] = ["authMethod", "timezone", "defaultHistoryDays", "logLevel", "applicationUrl"];
+const EDITABLE: (keyof GS)[] = ["authMethod", "timezone", "logLevel", "applicationUrl"];
 const pick = (s: GS): GS => Object.fromEntries(EDITABLE.map((k) => [k, s[k]])) as unknown as GS;
 
 const TIMEZONES: string[] = (() => {
@@ -120,17 +120,7 @@ export function GeneralSettings() {
         </FormRow>
       </SettingsSection>
 
-      <SettingsSection title="Newsletters">
-        <FormRow label="Default History" help="How many days back each newsletter looks, unless the newsletter sets its own.">
-          <NumberInput
-            value={draft.defaultHistoryDays}
-            onChange={(v) => typeof v === "number" && set("defaultHistoryDays", v)}
-            min={1}
-            max={90}
-            suffix=" days"
-            maw={160}
-          />
-        </FormRow>
+      <SettingsSection title="Links">
         <FormRow
           label="Application URL"
           help="Optional. The address people use to reach this app, e.g. https://newzlettr.example.com — used for links inside emails."

@@ -154,7 +154,7 @@ export function StatsPage() {
 
           {data.excludedUsers.length > 0 && (
             <Text size="sm" c="dimmed">
-              Most watched lists leave out plays by <b>{data.excludedUsers.join(", ")}</b> (Settings → Content → Most Watched).
+              Most watched lists leave out plays by <b>{data.excludedUsers.join(", ")}</b> (Settings → Content → Privacy).
             </Text>
           )}
 

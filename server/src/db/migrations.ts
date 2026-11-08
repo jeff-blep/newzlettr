@@ -171,4 +171,14 @@ export const MIGRATIONS: Migration[] = [
         footer_text = coalesce((SELECT json_extract(value, '$.footerText') FROM settings WHERE key = 'content'), '');
     `,
   },
+  {
+    version: 7,
+    name: "history window is per newsletter",
+    sql: `
+      -- The global "Default History" setting is gone; give every newsletter an explicit window.
+      UPDATE newsletters SET history_days = coalesce(
+        (SELECT json_extract(value, '$.defaultHistoryDays') FROM settings WHERE key = 'general'), 7)
+      WHERE history_days IS NULL;
+    `,
+  },
 ];

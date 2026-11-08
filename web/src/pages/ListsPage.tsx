@@ -38,7 +38,7 @@ export function ListsPage() {
         }
       />
       <Text size="sm" c="dimmed" mb="md" maw={760}>
-        Group recipients (e.g. Donors, Family, Friends without libraries) and pick lists when setting up a newsletter. To add people, select them on the{" "}
+        Group recipients (e.g. Family, Friends without libraries) and pick lists when setting up a newsletter. To add people, select them on the{" "}
         <Text component={Link} to="/recipients" c="newz.3" size="sm" span>
           People
         </Text>{" "}

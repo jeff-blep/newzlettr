@@ -8,7 +8,7 @@ import { resolveForEmail, resolveForPreview } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { htmlToText } from "../render/sanitize.js";
 import { CARDS } from "../render/tokens.js";
-import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, HEX_COLOR, DEFAULT_HISTORY_DAYS } from "../settings.js";
 
 interface Row {
   id: number;
@@ -114,7 +114,7 @@ export function renderRouter(db: DB): Router {
   r.post("/preview", async (req, res) => {
     const p = input.safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
-    const days = p.data.days ?? getSection(db, "general").defaultHistoryDays;
+    const days = p.data.days ?? DEFAULT_HISTORY_DAYS;
     const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject: p.data.subject, previewScheme: p.data.scheme, look: lookFrom(p.data) });
     const html = resolveForPreview(out.html);
     res.json({ html, warnings: out.warnings, bytes: Buffer.byteLength(html) } satisfies RenderResult);
@@ -123,7 +123,7 @@ export function renderRouter(db: DB): Router {
   r.post("/test-send", async (req, res) => {
     const p = input.extend({ to: z.string().trim().email("Enter a valid email address") }).safeParse(req.body);
     if (!p.success) return res.status(400).json({ error: p.error.issues[0]?.message });
-    const days = p.data.days ?? getSection(db, "general").defaultHistoryDays;
+    const days = p.data.days ?? DEFAULT_HISTORY_DAYS;
     const subject = `[Test] ${p.data.subject || "Newsletter preview"}`;
     const out = await renderNewsletter(db, { templateHtml: p.data.html, days, subject, look: lookFrom(p.data) });
     const email = await resolveForEmail(db, out.html);

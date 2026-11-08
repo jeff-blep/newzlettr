@@ -22,7 +22,7 @@ const v1 = {
     plexToken: "plex-token",
     tautulliUrl: "http://192.0.2.10:8181",
     tautulliApiKey: "tautulli-key",
-    lookbackDays: 7,
+    lookbackDays: 14,
     ownerRecommendation: { plexItemId: "12345", note: "Watch this" },
     imageHost: "cloudinary",
     cloudinary: { cloudName: "demo", apiKey: "k", apiSecret: "s", folder: "newzlettr" },
@@ -61,7 +61,9 @@ describe("v1 importer", () => {
     const db = tempDb();
     const s = importV1(db, v1);
     expect(s).toMatchObject({ recipients: 2, templates: 1, newsletters: 2, hostPick: true });
-    expect(s.settings).toEqual(expect.arrayContaining(["Plex", "Tautulli", "Email", "Images", "Default history"]));
+    expect(s.settings).toEqual(expect.arrayContaining(["Plex", "Tautulli", "Email", "Images"]));
+    // v1's global lookback lands on each newsletter that didn't set its own
+    expect((db.prepare("SELECT history_days FROM newsletters ORDER BY id").all() as { history_days: number }[]).map((r) => r.history_days)).toEqual([7, 14]);
 
     expect(getSection(db, "plex")).toMatchObject({ url: "http://192.0.2.10:32400", token: "plex-token" });
     expect(getSection(db, "smtp")).toMatchObject({

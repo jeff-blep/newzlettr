@@ -51,8 +51,7 @@ export function IgnoredPage() {
     <>
       <PageToolbar title="Ignored" />
       <Text size="sm" c="dimmed" mb="md" maw={760}>
-        People here are skipped by <b>Import from Plex</b>, even if they still have access to your server. Ignore someone from the People page; when the friendship's
-        repaired, take them off this list and run Import from Plex again.
+        People here are skipped by <b>Import from Plex</b>, even if they still have access to your server. This prevents them from being added from an import.
       </Text>
 
       {selected.size > 0 && (

@@ -9,14 +9,14 @@ import { audience, cronOf, getNewsletterRow, lookOf, type NewsletterRow, sendNew
 import { resolveForPreview } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { describeCron, nextRuns, validateCron } from "../schedule.js";
-import { DEFAULT_LOOK, EMAIL_THEMES, effectiveTimezone, getSection, HEX_COLOR } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, effectiveTimezone, HEX_COLOR, DEFAULT_HISTORY_DAYS } from "../settings.js";
 
 const input = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
   subject: z.string().trim().max(200).default(""),
   templateId: z.number().int().positive().nullable().default(null),
   cron: z.string().trim().min(1, "Pick a schedule"),
-  historyDays: z.number().int().min(1).max(90).nullable().default(null),
+  historyDays: z.number().int().min(1).max(90).default(DEFAULT_HISTORY_DAYS),
   sendAsBcc: z.boolean().default(true),
   allRecipients: z.boolean().default(false),
   listIds: z.array(z.number().int().positive()).max(500).default([]),
@@ -47,7 +47,7 @@ export function newslettersRouter(db: DB): Router {
       templateName: tpl?.name ?? null,
       cron,
       scheduleDescription: validateCron(cron) ? "Invalid schedule" : describeCron(cron),
-      historyDays: row.history_days,
+      historyDays: row.history_days ?? DEFAULT_HISTORY_DAYS,
       sendAsBcc: !!row.send_as_bcc,
       allRecipients: !!row.all_recipients,
       listIds: (db.prepare("SELECT list_id FROM newsletter_lists WHERE newsletter_id = ?").all(row.id) as { list_id: number }[]).map((x) => x.list_id),
@@ -197,7 +197,7 @@ export function newslettersRouter(db: DB): Router {
     if (!row) return res.status(404).json({ error: "not found" });
     const tpl = row.template_id ? (db.prepare("SELECT html FROM templates WHERE id = ?").get(row.template_id) as { html: string } | undefined) : undefined;
     if (!tpl) return res.status(400).json({ error: "This newsletter has no template" });
-    const days = row.history_days ?? getSection(db, "general").defaultHistoryDays;
+    const days = row.history_days ?? DEFAULT_HISTORY_DAYS;
     const previewScheme = req.query.scheme === "dark" ? "dark" : req.query.scheme === "light" ? "light" : undefined;
     const out = await renderNewsletter(db, { templateHtml: tpl.html, days, subject: row.subject || row.name, previewScheme, look: lookOf(row) });
     const html = resolveForPreview(out.html);

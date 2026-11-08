@@ -53,7 +53,7 @@ export function ContentSettings() {
         </FormRow>
       </SettingsSection>
 
-      <SettingsSection title="Most Watched">
+      <SettingsSection title="Privacy">
         <FormRow
           label="Leave Out the Host"
           help="Your own plays won't count toward the Most watched movies and shows lists (in newsletters and on the Stats page). Everything else — plays, hours, platforms, Popular — stays exactly as Tautulli reports it."

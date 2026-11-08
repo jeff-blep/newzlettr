@@ -5,7 +5,7 @@ import { logger } from "../logging.js";
 import { resolveForEmail } from "../render/images.js";
 import { renderNewsletter } from "../render/render.js";
 import { htmlToText } from "../render/sanitize.js";
-import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR, type Look } from "../settings.js";
+import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR, type Look, DEFAULT_HISTORY_DAYS } from "../settings.js";
 import { sendMail } from "./send.js";
 
 const log = logger("newsletter");
@@ -132,7 +132,7 @@ export async function sendNewsletter(
     const to = opts.testTo ? [opts.testTo] : audience(db, row);
     if (!to.length) return finish("failed", 0, "No enabled recipients");
 
-    const days = row.history_days ?? getSection(db, "general").defaultHistoryDays;
+    const days = row.history_days ?? DEFAULT_HISTORY_DAYS;
     const subject = (opts.testTo ? "[Test] " : "") + (row.subject.trim() || row.name);
     const rendered = await renderNewsletter(db, { templateHtml: tpl.html, days, subject, look: lookOf(row) });
     const email = await resolveForEmail(db, rendered.html);

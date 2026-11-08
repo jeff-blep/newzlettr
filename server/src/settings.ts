@@ -9,7 +9,6 @@ import type { DB } from "./db/index.js";
 export const generalSchema = z.object({
   authMethod: z.enum(["forms", "forms-local-bypass"]).default("forms"),
   timezone: z.string().default(""),
-  defaultHistoryDays: z.number().int().min(1).max(90).default(7),
   logLevel: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
   applicationUrl: z.string().default(""),
 });
@@ -76,6 +75,9 @@ export interface Look {
   headerTitle: string;
   footerText: string;
 }
+/** History window used when nothing else says otherwise (new newsletters, previews, Stats page). */
+export const DEFAULT_HISTORY_DAYS = 7;
+
 export const DEFAULT_LOOK: Look = { emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "" };
 
 export const SECTIONS = {

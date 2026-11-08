@@ -1,7 +1,7 @@
 import type { DB } from "../db/index.js";
 import { tx } from "../db/index.js";
 import { normalizeBaseUrl } from "../integrations/http.js";
-import { setSection } from "../settings.js";
+import { DEFAULT_HISTORY_DAYS, setSection } from "../settings.js";
 import { v1ScheduleToCron } from "../schedule.js";
 
 /** Shapes as written by Newzlettr v1 (server/index.mjs). Everything optional: v1 files vary. */
@@ -85,11 +85,6 @@ export function importV1(db: DB, files: V1Files): ImportSummary {
         s.settings.push("Images");
       }
 
-      const days = num(c.lookbackDays, 0);
-      if (days >= 1 && days <= 90) {
-        setSection(db, "general", { defaultHistoryDays: days });
-        s.settings.push("Default history");
-      }
 
       const rec = obj(c.ownerRecommendation);
       if (str(rec.plexItemId) || str(rec.note)) {
@@ -152,13 +147,15 @@ export function importV1(db: DB, files: V1Files): ImportSummary {
       const emails = arr(o.recipients).map((e) => str(e).toLowerCase()).filter(Boolean);
       const all = emails.length > 0 && emails.length === allEmails.size && emails.every((e) => allEmails.has(e));
       const cron = v1ScheduleToCron(obj(o.schedule));
-      const historyDays = num(o.historyDays, 0);
+      // v1 had a global lookback; v2 keeps the window on each newsletter.
+      const v1Lookback = num(files.config?.lookbackDays, 0);
+      const historyDays = num(o.historyDays, 0) || v1Lookback || DEFAULT_HISTORY_DAYS;
       const row = insertNl.get(
         name,
         str(o.subject),
         templateId,
         JSON.stringify({ cron }),
-        historyDays >= 1 && historyDays <= 90 ? historyDays : null,
+        historyDays >= 1 && historyDays <= 90 ? historyDays : DEFAULT_HISTORY_DAYS,
         o.sendAsBcc === false ? 0 : 1,
         all ? 1 : 0,
       ) as { id: number };

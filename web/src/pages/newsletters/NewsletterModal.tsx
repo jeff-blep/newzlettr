@@ -6,7 +6,6 @@ import type { Newsletter, NewsletterInput } from "../../../../shared/types";
 import { useRecipients } from "../../api/media";
 import { useLists } from "../../api/lists";
 import { useNewsletterMutations } from "../../api/newsletters";
-import { useGeneralSettings } from "../../api/settings";
 import { useTemplates } from "../../api/templates";
 import { notifyOk } from "../../components/notify";
 import { SchedulePicker } from "../../components/SchedulePicker";
@@ -18,7 +17,6 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
   const templates = useTemplates();
   const recipients = useRecipients();
   const lists = useLists();
-  const general = useGeneralSettings();
   const m = useNewsletterMutations();
   const [error, setError] = useState<string | null>(null);
   const [d, setD] = useState<NewsletterInput>(() =>
@@ -39,7 +37,7 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
           footerText: newsletter.footerText,
           enabled: newsletter.enabled,
         }
-      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: null, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", enabled: false },
+      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: 7, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", enabled: false },
   );
   const set = <K extends keyof NewsletterInput>(k: K, v: NewsletterInput[K]) => setD((x) => ({ ...x, [k]: v }));
 
@@ -132,14 +130,15 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
 
           <NumberInput
             label="History window"
-            description={`How many days back the stats and “recently added” cards look. Empty = default (${general.data?.defaultHistoryDays ?? 7} days).`}
-            value={d.historyDays ?? ""}
-            onChange={(v) => set("historyDays", typeof v === "number" ? v : null)}
+            description="How many days back the stats and “recently added” cards look."
+            value={d.historyDays}
+            onChange={(v) => typeof v === "number" && set("historyDays", v)}
             min={1}
             max={90}
             suffix=" days"
             w={220}
             allowDecimal={false}
+            required
           />
 
           <Stack gap={8}>

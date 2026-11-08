@@ -38,19 +38,19 @@ describe("migrations", () => {
 describe("settings sections", () => {
   it("returns defaults, persists patches, and survives bad stored values", () => {
     const db = tempDb();
-    expect(getSection(db, "general")).toMatchObject({ authMethod: "forms", defaultHistoryDays: 7, timezone: "" });
-    setSection(db, "general", { defaultHistoryDays: 14 });
-    expect(getSection(db, "general").defaultHistoryDays).toBe(14);
-    db.prepare("UPDATE settings SET value = ? WHERE key = 'general'").run(JSON.stringify({ defaultHistoryDays: 999, logLevel: "debug" }));
+    expect(getSection(db, "general")).toMatchObject({ authMethod: "forms", logLevel: "info", timezone: "" });
+    setSection(db, "general", { applicationUrl: "https://news.example.com" });
+    expect(getSection(db, "general").applicationUrl).toBe("https://news.example.com");
+    db.prepare("UPDATE settings SET value = ? WHERE key = 'general'").run(JSON.stringify({ logLevel: "LOUD", timezone: "UTC" }));
     const g = getSection(db, "general");
-    expect(g.defaultHistoryDays).toBe(7); // invalid value dropped back to default
-    expect(g.logLevel).toBe("debug"); // valid sibling kept
+    expect(g.logLevel).toBe("info"); // invalid value dropped back to default
+    expect(g.timezone).toBe("UTC"); // valid sibling kept
   });
 
   it("parsePatch keeps only the keys that were sent", () => {
     const p = parsePatch("general", { timezone: "UTC" });
     expect(p.ok && p.patch).toEqual({ timezone: "UTC" });
-    expect(parsePatch("general", { defaultHistoryDays: 500 }).ok).toBe(false);
+    expect(parsePatch("general", { logLevel: "LOUD" }).ok).toBe(false);
   });
 
   it("saving one field over the API never resets the others (v1 smtpSecure bug)", async () => {
@@ -58,9 +58,9 @@ describe("settings sections", () => {
     try {
       const c = client(t.url);
       await c.req("POST", "/api/auth/setup", { username: "admin", password: "longenough1" });
-      await c.req("PUT", "/api/settings/general", { defaultHistoryDays: 21, logLevel: "debug", authMethod: "forms-local-bypass" });
+      await c.req("PUT", "/api/settings/general", { applicationUrl: "https://x.example", logLevel: "debug", authMethod: "forms-local-bypass" });
       const res = await c.req("PUT", "/api/settings/general", { timezone: "UTC" });
-      expect(res.body).toMatchObject({ timezone: "UTC", defaultHistoryDays: 21, logLevel: "debug", authMethod: "forms-local-bypass" });
+      expect(res.body).toMatchObject({ timezone: "UTC", applicationUrl: "https://x.example", logLevel: "debug", authMethod: "forms-local-bypass" });
     } finally {
       await t.close();
     }

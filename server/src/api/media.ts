@@ -6,7 +6,7 @@ import { getStats } from "../data/stats.js";
 import type { PlexItem } from "../integrations/plex.js";
 import { logger } from "../logging.js";
 import { plexClient, tautulliClient } from "../services.js";
-import { getSection } from "../settings.js";
+import { DEFAULT_HISTORY_DAYS } from "../settings.js";
 
 /** Plex metadata -> card-friendly ref. Episodes show "Show — S1E2 · Title". */
 export function plexItemToRef(m: PlexItem): MediaRef {
@@ -114,7 +114,7 @@ export function mediaRouter(db: DB): Router {
   /* --------------------------------- stats -------------------------------- */
 
   r.get("/stats", async (req, res) => {
-    const days = Number(req.query.days) || getSection(db, "general").defaultHistoryDays;
+    const days = Number(req.query.days) || DEFAULT_HISTORY_DAYS;
     if (days < 1 || days > 365) return res.status(400).json({ error: "days must be 1-365" });
     res.json(await getStats(db, days, { fresh: req.query.fresh === "1" }));
   });
