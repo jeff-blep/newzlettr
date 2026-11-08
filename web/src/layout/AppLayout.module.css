@@ -1,0 +1,72 @@
+.header {
+  background: var(--nz-header-bg);
+  border-bottom: 3px solid var(--mantine-color-newz-5);
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding: 0 var(--mantine-spacing-md);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mantine-color-white);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.navbar {
+  background: var(--nz-sidebar-bg);
+  border-right: 1px solid var(--nz-border);
+  padding: var(--mantine-spacing-xs) 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 20px;
+  color: var(--mantine-color-gray-4);
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-left: 3px solid transparent;
+  transition: background 120ms, color 120ms;
+}
+
+.item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mantine-color-white);
+}
+
+.itemActive {
+  composes: item;
+  color: var(--mantine-color-newz-3);
+  border-left-color: var(--mantine-color-newz-5);
+  background: rgba(124, 92, 255, 0.08);
+}
+
+.child {
+  display: block;
+  padding: 7px 20px 7px 53px;
+  color: var(--mantine-color-gray-5);
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-left: 3px solid transparent;
+}
+
+.child:hover {
+  color: var(--mantine-color-white);
+}
+
+.childActive {
+  composes: child;
+  color: var(--mantine-color-newz-3);
+}
+
+.main {
+  background: var(--nz-page-bg);
+}

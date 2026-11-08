@@ -1,0 +1,47 @@
+.wrap {
+  border: 1px solid var(--nz-border);
+  border-radius: 8px;
+  background: var(--nz-sidebar-bg);
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--nz-border);
+  background: var(--nz-header-bg);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.content :global(.tiptap) {
+  min-height: 420px;
+  padding: 16px 20px;
+  outline: none;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--mantine-color-gray-2);
+}
+
+.content :global(.tiptap p) {
+  margin: 0 0 0.8em;
+}
+
+.content :global(.tiptap a) {
+  color: var(--mantine-color-newz-3);
+}
+
+.content :global(.tiptap blockquote) {
+  border-left: 3px solid var(--mantine-color-newz-5);
+  margin: 0 0 0.8em;
+  padding-left: 12px;
+  color: var(--mantine-color-gray-4);
+}
+
+.content :global(.tiptap p.is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  color: var(--mantine-color-dark-2);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

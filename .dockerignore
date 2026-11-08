@@ -1,6 +1,11 @@
-node_modules
-dist
+**/node_modules
+**/dist
+config
 .git
-.gitignore
+.github
+docs
+*.md
+!README.md
 .DS_Store
-npm-debug.log
+**/*.db*
+**/.env*
