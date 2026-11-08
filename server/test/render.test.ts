@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateRange } from "../src/render/render.js";
+import { dateRange, normalizeCardMarkers } from "../src/render/render.js";
 import { htmlToText, sanitizeTemplate } from "../src/render/sanitize.js";
 import { cardForToken, tokensIn } from "../src/render/tokens.js";
 import { esc, truncate } from "../src/render/html.js";
@@ -48,5 +48,14 @@ describe("text helpers", () => {
     const now = new Date("2026-11-07T15:00:00Z");
     expect(dateRange(now, 7, "America/New_York")).toBe("Nov 1 – Nov 7, 2026");
     expect(dateRange(now, 1, "UTC")).toBe("Nov 7, 2026");
+  });
+});
+
+describe("card markers", () => {
+  it("empty and filled data-card markers both become tokens (empty ones used to render nothing)", () => {
+    const html = '<p>Hi</p><div data-card="CARD_RECENT_MOVIES"></div><div data-card="CARD_SERVER_TOTALS">{{CARD_SERVER_TOTALS}}</div><span data-card="CARD_HOST_PICK"></span>';
+    const out = normalizeCardMarkers(sanitizeTemplate(html));
+    expect(tokensIn(out)).toEqual(["RECENT_MOVIES", "SERVER_TOTALS", "HOST_PICK"]);
+    expect(out).not.toContain("data-card");
   });
 });

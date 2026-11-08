@@ -10,6 +10,14 @@ logs and backups.
 
 > **v2** is a full rebuild. Coming from v1? See [Upgrading from v1](#upgrading-from-v1).
 
+![Newsletters](docs/screenshots/newsletters.jpg)
+
+| Dark email | Light email |
+| --- | --- |
+| ![Dark email](docs/screenshots/email-dark.jpg) | ![Light email](docs/screenshots/email-light.jpg) |
+
+![Stats](docs/screenshots/stats.jpg)
+
 ## Features
 
 **Newsletters**
@@ -41,6 +49,9 @@ logs and backups.
 
 ## Install (Docker)
 
+Images are published for **x86 (amd64)** and **ARM (arm64)** — Intel/AMD servers, Synology,
+Unraid, Raspberry Pi 4/5, Apple Silicon.
+
 ```bash
 docker run -d --name newzlettr \
   -p 3001:3001 \
@@ -48,7 +59,7 @@ docker run -d --name newzlettr \
   -e PUID=1000 -e PGID=1000 \
   -v /path/to/newzlettr/config:/config \
   --restart unless-stopped \
-  newzlettr:latest
+  ghcr.io/jeff-blep/newzlettr:latest
 ```
 
 or with Compose:
@@ -56,7 +67,7 @@ or with Compose:
 ```yaml
 services:
   newzlettr:
-    image: newzlettr:latest
+    image: ghcr.io/jeff-blep/newzlettr:latest
     container_name: newzlettr
     ports:
       - "3001:3001"
@@ -69,7 +80,8 @@ services:
     restart: unless-stopped
 ```
 
-Build the image yourself (any OS/CPU with Docker — x86 or ARM): `docker build -t newzlettr:latest .`
+Tags: `latest` (newest release), `2`, `2.0`, `2.0.0` (pin a version), `edge` (latest code on `main`).
+To build it yourself instead: `docker build -t newzlettr .`
 
 ### First run
 
@@ -121,3 +133,7 @@ address instead (with the intended audience size in the subject) — useful for 
 real recipient list. Never set it in production.
 
 Layout: `server/` (Express 5 + TypeScript), `web/` (React + Mantine), `shared/types.ts`.
+
+## License
+
+[MIT](LICENSE)

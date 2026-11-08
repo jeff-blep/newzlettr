@@ -51,7 +51,7 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
   const t = themeFor(look.accentColor, look.emailTheme === "dark" ? "dark" : "light");
   const warnings: string[] = [];
   // Collapse runs of empty paragraphs (pasted text is full of them) into a single gap.
-  const clean = sanitizeTemplate(opts.templateHtml).replace(/(?:<(p|div)>\s*(?:<br\s*\/?>\s*)*<\/\1>\s*){2,}/g, "<p><br></p>");
+  const clean = normalizeCardMarkers(sanitizeTemplate(opts.templateHtml)).replace(/(?:<(p|div)>\s*(?:<br\s*\/?>\s*)*<\/\1>\s*){2,}/g, "<p><br></p>");
   const used = tokensIn(clean);
   const days = opts.days;
 
@@ -137,6 +137,15 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
   });
   if (warnings.length) log.warn({ warnings }, "rendered with warnings");
   return { html, warnings, cardsUsed: used };
+}
+
+/**
+ * Card markers come in two shapes: `<div data-card="X">{{X}}</div>` (what the editor saves) and
+ * an empty `<div data-card="X"></div>` (the editor's starter content, hand-written HTML). Both
+ * become a plain `{{X}}` block so the token pass below finds them.
+ */
+export function normalizeCardMarkers(html: string): string {
+  return html.replace(/<(div|span)\b[^>]*\bdata-card="([A-Za-z_]+)"[^>]*>[\s\S]*?<\/\1>/g, (_m, _tag, token: string) => `<p>{{${token.toUpperCase()}}}</p>`);
 }
 
 async function loadHostPick(db: DB, warnings: string[]): Promise<HostPickData | null> {
