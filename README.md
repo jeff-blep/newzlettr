@@ -13,7 +13,7 @@ Radarr, it'll feel familiar.
 
 | Dark email | Light email |
 | --- | --- |
-| ![Dark email](docs/screenshots/email-dark.jpg) | ![Light email](docs/screenshots/email-light.jpg) |
+| ![Dark email](docs/screenshots/email-dark-2.jpg) | ![Light email](docs/screenshots/email-light-2.jpg) |
 
 ![Stats](docs/screenshots/stats.jpg)
 
