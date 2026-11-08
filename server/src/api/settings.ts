@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { GeneralSettingsResponse, TestResult } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { invalidateSmtpHealth, runHealthChecks } from "../health.js";
-import { clearFolder, pingCloudinary } from "../integrations/cloudinary.js";
+import { clearFolder, clearUsageCache, cloudinaryUsage, pingCloudinary } from "../integrations/cloudinary.js";
 import { normalizeBaseUrl } from "../integrations/http.js";
 import { testSmtp } from "../integrations/mail.js";
 import { PlexClient } from "../integrations/plex.js";
@@ -111,6 +111,17 @@ export function settingsRouter(db: DB): Router {
     res.json(result);
   });
 
+  r.get("/images/usage", async (req, res) => {
+    const cfg = getSection(db, "images");
+    if (cfg.mode !== "cloudinary" || !cfg.cloudName || !cfg.apiKey || !cfg.apiSecret) return res.json({ configured: false });
+    try {
+      res.json({ configured: true, usage: await cloudinaryUsage(cfg, req.query.fresh === "1") });
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      res.json({ configured: true, error: status === 401 ? "Cloudinary rejected the API key/secret." : (e as Error).message });
+    }
+  });
+
   r.post("/images/clear-cache", async (_req, res) => {
     const cfg = getSection(db, "images");
     const cached = Number(db.prepare("DELETE FROM image_cache").run().changes);
@@ -124,6 +135,7 @@ export function settingsRouter(db: DB): Router {
         return res.json({ ok: false, message: `${message} Cloudinary delete failed: ${(e as Error).message}` } satisfies TestResult);
       }
     }
+    clearUsageCache();
     log.info({ cached, remote }, "image cache cleared");
     res.json({ ok: true, message } satisfies TestResult);
   });

@@ -67,3 +67,73 @@ export async function clearFolder(cfg: ImagesConfig): Promise<number> {
   }
   return deleted;
 }
+
+export interface CloudinaryUsage {
+  plan: string;
+  lastUpdated: string | null;
+  /** Free/credit plans: monthly credits (1 credit ~ 1 GB storage, 1 GB bandwidth, or 1,000 transformations). */
+  credits: { usage: number; limit: number; usedPercent: number } | null;
+  storageBytes: number;
+  bandwidthBytes: number;
+  transformations: number;
+  totalImages: number;
+  folder: { name: string; images: number; bytes: number; truncated: boolean };
+}
+
+const usageCache = new Map<string, { at: number; value: CloudinaryUsage }>();
+const USAGE_TTL = 10 * 60_000;
+
+/** Account usage + what's in Newzlettr's folder. Cached 10 min (the Admin API is rate-limited). */
+export async function cloudinaryUsage(cfg: ImagesConfig, fresh = false): Promise<CloudinaryUsage> {
+  const key = `${cfg.cloudName}:${cfg.apiKey}:${cfg.folder}`;
+  const hit = usageCache.get(key);
+  if (!fresh && hit && Date.now() - hit.at < USAGE_TTL) return hit.value;
+
+  const headers = { Authorization: basic(cfg) };
+  type Usage = {
+    plan?: string;
+    last_updated?: string;
+    credits?: { usage?: number; limit?: number; used_percent?: number };
+    storage?: { usage?: number };
+    bandwidth?: { usage?: number };
+    transformations?: { usage?: number };
+    resources?: number;
+  };
+  const u = await httpJson<Usage>(api(cfg, "/usage"), { headers, timeoutMs: 15_000 });
+
+  // Sum Newzlettr's own folder (paged; stop after 10 pages = 5,000 images).
+  let images = 0;
+  let bytes = 0;
+  let cursor: string | undefined;
+  let pages = 0;
+  do {
+    const qs = new URLSearchParams({ prefix: `${cfg.folder}/`, max_results: "500", ...(cursor ? { next_cursor: cursor } : {}) });
+    const page = await httpJson<{ resources?: { bytes?: number }[]; next_cursor?: string }>(api(cfg, `/resources/image/upload?${qs}`), { headers, timeoutMs: 20_000 });
+    for (const r of page.resources ?? []) {
+      images++;
+      bytes += r.bytes ?? 0;
+    }
+    cursor = page.next_cursor;
+    pages++;
+  } while (cursor && pages < 10);
+
+  const value: CloudinaryUsage = {
+    plan: u.plan ?? "Unknown",
+    lastUpdated: u.last_updated ?? null,
+    credits:
+      u.credits && typeof u.credits.limit === "number" && u.credits.limit > 0
+        ? { usage: u.credits.usage ?? 0, limit: u.credits.limit, usedPercent: u.credits.used_percent ?? ((u.credits.usage ?? 0) / u.credits.limit) * 100 }
+        : null,
+    storageBytes: u.storage?.usage ?? 0,
+    bandwidthBytes: u.bandwidth?.usage ?? 0,
+    transformations: u.transformations?.usage ?? 0,
+    totalImages: u.resources ?? 0,
+    folder: { name: cfg.folder, images, bytes, truncated: !!cursor },
+  };
+  usageCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+export function clearUsageCache(): void {
+  usageCache.clear();
+}

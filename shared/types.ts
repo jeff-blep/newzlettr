@@ -329,3 +329,16 @@ export interface SchedulePreview {
   next: string[];
   description: string;
 }
+
+export interface CloudinaryUsage {
+  plan: string;
+  lastUpdated: string | null;
+  credits: { usage: number; limit: number; usedPercent: number } | null;
+  storageBytes: number;
+  bandwidthBytes: number;
+  transformations: number;
+  totalImages: number;
+  folder: { name: string; images: number; bytes: number; truncated: boolean };
+}
+
+export type ImagesUsageResponse = { configured: false } | { configured: true; usage?: CloudinaryUsage; error?: string };

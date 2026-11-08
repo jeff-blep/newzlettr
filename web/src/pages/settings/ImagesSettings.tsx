@@ -8,6 +8,7 @@ import { PageToolbar } from "../../components/PageToolbar";
 import { SecretInput } from "../../components/SecretInput";
 import { TestButton } from "../../components/TestButton";
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
+import { CloudinaryUsageCard } from "../../components/CloudinaryUsageCard";
 
 export function ImagesSettings() {
   const q = useSection("images");
@@ -71,6 +72,12 @@ export function ImagesSettings() {
           <FormRow label="">
             <TestButton onTest={() => testSection("images", d)} />
           </FormRow>
+        </SettingsSection>
+      )}
+
+      {q.data?.mode === "cloudinary" && (
+        <SettingsSection title="Usage">
+          <CloudinaryUsageCard />
         </SettingsSection>
       )}
 
