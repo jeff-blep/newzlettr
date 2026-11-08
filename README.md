@@ -1,12 +1,11 @@
 # Newzlettr
 
-**Self-hosted newsletters for your Plex server, built on Tautulli.**
+**Send your Plex users a good-looking newsletter about what's on your server.**
 
-Newzlettr emails your Plex users what's new on your server: recently added movies and episodes,
-what everyone's been watching, a featured "Host's Pick", and anything else you want to say. It
-looks and sets up like the *arr apps (Sonarr, Radarr, Bazarr): one container, one `/config`
-folder, a sidebar UI, Settings pages with **Test** buttons, and System pages for status, tasks,
-logs and backups.
+Newzlettr emails the people you share your Plex server with: the movies and episodes you've added,
+what everyone's been watching, a "Host's Pick" with your own recommendation, and anything else you
+want to say. Set it up once, pick a schedule, and it goes out on its own. If you've used Sonarr or
+Radarr, it'll feel familiar.
 
 > **v2** is a full rebuild. Coming from v1? See [Upgrading from v1](#upgrading-from-v1).
 
@@ -21,36 +20,46 @@ logs and backups.
 ## Features
 
 **Newsletters**
-- **Templates with live cards** — write your intro in a rich-text editor and drop in cards:
-  New movies, New episodes (grouped by show), Server totals, Most watched / Popular movies and
-  shows, Platforms, Host's Pick. The preview is built by the same renderer that sends the email.
-- **A look per newsletter** — Dark, Light, or *Match reader's device*, plus accent colour, header
-  title and footer. Your Weekly can be dark and your Donation Drive light.
-- **Schedules** — daily, weekly, monthly or any cron expression, in your time zone. Each
-  scheduled slot can only ever send once; a send missed while Newzlettr was down is recorded,
-  not sent late.
-- **Send test / Send now / Preview** for every newsletter, and **Activity** — every send
-  recorded: when, to how many, and any error.
+- **Easy templates** — write your message like a normal email, then drop in ready-made sections:
+  new movies, new episodes, most watched, most popular, server totals, Host's Pick and more. The
+  preview shows exactly what people will get.
+- **Your look** — each newsletter can be dark, light, or match the reader's phone/computer, with
+  your own colour, title and footer.
+- **Schedules** — daily, weekly or monthly, in your time zone. A newsletter never goes out twice,
+  and one missed while the server was off won't show up late.
+- **Preview, send a test to yourself, or send now** — and an **Activity** page showing every
+  newsletter sent, to how many people, and whether anything went wrong.
 
 **Recipients**
-- **Import from Plex** — pulls in everyone your server is shared with and shows each person's
-  **library access** (which libraries they have, or none).
-- **Lists** — group people (Family, Friends without libraries…) and send newsletters to lists,
-  individual people, or everyone.
-- **Ignore list** — like Sonarr's import exclusions: ignored people are skipped by future imports.
+- **Import from Plex** — adds everyone you share your server with, and shows who has access to
+  which libraries.
+- **Lists** — put people into groups (Family, Friends…) and send to a list, a few people, or
+  everyone.
+- **Ignore list** — people you delete can stay out of future imports.
 
 **Everything else**
-- **Stats page** — library totals, what's been watched, top platforms.
-- **Privacy** — leave the server owner's (or anyone's) plays out of the *Most watched* lists.
-- **Images** — attach posters to the email, or host them on Cloudinary (each image uploaded once,
-  email-sized), with an account **usage** panel.
-- **Login** — forms login, optional "Disabled for Local Addresses", and an API key.
-- **Health checks, tasks, logs, backups** — like the *arr apps.
+- **Stats page** — library totals, what's been watched, and what people watch on.
+- **Privacy** — keep your own viewing (or anyone's) out of the *Most watched* lists.
+- **Posters** — attached to the email, or hosted on Cloudinary for smaller emails.
+- **Password protected**, with health checks, logs and backups built in.
 
-## Install (Docker)
+## Before you start
 
-Images are published for **x86 (amd64)** and **ARM (arm64)** — Intel/AMD servers, Synology,
-Unraid, Raspberry Pi 4/5, Apple Silicon.
+You'll need:
+
+- **Plex Media Server** — and your [Plex token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/).
+- **[Tautulli](https://tautulli.com)** — connected to your Plex server. Newzlettr gets its "what's
+  been watched" numbers from it. You'll need its address and API key (Tautulli → Settings → Web
+  Interface → API).
+- **An email account to send from** — almost any provider works (see [Email](#email)).
+- **Docker** — to run Newzlettr.
+- **[Cloudinary](https://cloudinary.com)** *(optional)* — a free account hosts the poster images
+  so the emails stay small. Without it, posters are attached to each email instead.
+
+## Install
+
+Newzlettr runs in Docker on just about anything: a Windows/Linux PC, Mac, Synology, Unraid or
+Raspberry Pi.
 
 ```bash
 docker run -d --name newzlettr \
@@ -62,7 +71,7 @@ docker run -d --name newzlettr \
   ghcr.io/jeff-blep/newzlettr:latest
 ```
 
-or with Compose:
+or with Docker Compose:
 
 ```yaml
 services:
@@ -72,67 +81,71 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - TZ=America/New_York   # schedules use this zone (or set one in Settings > General)
-      - PUID=1000             # files in /config are owned by this user/group
+      - TZ=America/New_York   # your time zone, so newsletters go out at the right time
+      - PUID=1000             # the user/group that owns the config folder
       - PGID=1000
     volumes:
-      - ./config:/config
+      - ./config:/config      # where Newzlettr keeps everything
     restart: unless-stopped
 ```
 
-Tags: `latest` (newest release), `2`, `2.0`, `2.0.0` (pin a version), `edge` (latest code on `main`).
-To build it yourself instead: `docker build -t newzlettr .`
+All your settings, recipients and newsletters live in that one `config` folder. Back it up and
+you've backed up everything.
 
-### First run
+### Setting it up
 
-1. Open `http://<host>:3001` and create your admin account.
-2. **Settings → Connections** — Plex URL + token, Tautulli URL + API key. Press **Test**.
-3. **Settings → Email** — your SMTP server. Press **Test** (optionally send yourself a test email).
-4. **Recipients → People → Import from Plex**, then put people on **Lists**.
-5. **Templates → New Template**, then **Newsletters → New Newsletter**: pick the template, look,
-   schedule, history window and recipients. Use **Send test** before switching it on.
+1. Open `http://<your-server>:3001` and create your login.
+2. **Settings → Connections** — enter your Plex address and token, and your Tautulli address and
+   API key. Press **Test** on each.
+3. **Settings → Email** — enter your email account details and press **Test**
+   (see [Email](#email)).
+4. **Settings → Images** *(optional)* — choose Cloudinary and enter your account details.
+5. **Recipients → People → Import from Plex**, then put people on **Lists** if you like.
+6. **Templates → New Template** to write your newsletter, then **Newsletters → New Newsletter**
+   to pick the template, look, schedule and who gets it. Send yourself a test before turning it on.
 
-Everything persistent lives in `/config`: the database (`newzlettr.db`), `logs/`, and `backups/`.
-Nothing needs to be created beforehand. Pick your time zone in **Settings → General** (or set
-`TZ`) — otherwise schedules run on the container's clock, which is UTC by default.
+### Email
 
-### Gmail
+Newzlettr sends through your own email account. You'll need four things from your email provider —
+search "*your provider* SMTP settings" if you're not sure:
 
-Use `smtp.gmail.com`, port 587, STARTTLS, your address as username, and an
-[App Password](https://myaccount.google.com/apppasswords) (not your normal password).
+- **Server** — e.g. `smtp.yourprovider.com`
+- **Port and encryption** — usually 587 with STARTTLS, or 465 with SSL/TLS
+- **Username** — usually your full email address
+- **Password** — many providers (Gmail, iCloud, Yahoo, Outlook with two-step sign-in) require an
+  **app password** made in your account's security settings, not your normal password
 
-### Light and dark email
+Use **Send Test Email** on the Email settings page to make sure it works.
 
-Each newsletter goes out as one email to everyone. **Dark** and **Light** send that design.
-**Match reader's device** sends the light design with instructions to switch to dark when the
-reader's device is in dark mode — Apple Mail (iPhone, iPad, Mac), Outlook for Mac/iOS and others
-follow them; Gmail doesn't (it shows light, and the Gmail app may recolour emails itself).
+### Dark, light, or match the reader
+
+**Dark** and **Light** send that design to everyone. **Match reader's device** switches between
+the two based on the reader's phone or computer setting. Apple Mail and Outlook on Mac/iPhone
+follow it; Gmail doesn't, so Gmail readers see the light version.
 
 ## Upgrading from v1
 
-v2 uses a database instead of four JSON files. In **System → Backup → Import from Newzlettr v1**,
-select your v1 `config.json`, `recipients.json`, `emailtemplates.json` and `newsletters.json`.
-Settings, recipients, templates (old card tokens keep working), newsletters and the Host's Pick are
-imported. **Newsletters are imported disabled** so nothing sends until you switch them on — open
-each one to set its recipients (lists or people) and look before enabling it.
+Go to **System → Backup → Import from Newzlettr v1** and select your four v1 files:
+`config.json`, `recipients.json`, `emailtemplates.json` and `newsletters.json`. Your settings,
+recipients, templates, newsletters and Host's Pick come across. Newsletters arrive **switched off**
+so nothing sends by surprise — open each one, choose who gets it, then turn it on.
 
-## Development
+## For developers
 
-Requires Node 22.13+ (uses the built-in `node:sqlite`).
+Requires Node 22.13+.
 
 ```bash
 npm install
-npm run dev        # API on :3001 (data in ./config), UI on http://localhost:5173
-npm test           # vitest
-npm run typecheck
+npm run dev        # app on http://localhost:5173 (data in ./config)
+npm test
 npm run build && NEWZLETTR_CONFIG_DIR=./config npm start
 ```
 
-Setting `NEWZLETTR_REDIRECT_ALL_MAIL_TO=you@example.com` sends **every** email to that one
-address instead (with the intended audience size in the subject) — useful for testing against a
-real recipient list. Never set it in production.
+Set `NEWZLETTR_REDIRECT_ALL_MAIL_TO=you@example.com` while testing to send **every** email to
+that one address instead of real recipients. Never set it on a live server.
 
-Layout: `server/` (Express 5 + TypeScript), `web/` (React + Mantine), `shared/types.ts`.
+Image tags: `latest` (newest release), `2.0.0` etc. (a specific version), `edge` (newest code).
+To build the image yourself: `docker build -t newzlettr .`
 
 ## License
 
