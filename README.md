@@ -123,6 +123,36 @@ Use **Send Test Email** on the Email settings page to make sure it works.
 the two based on the reader's phone or computer setting. Apple Mail and Outlook on Mac/iPhone
 follow it; Gmail doesn't, so Gmail readers see the light version.
 
+## Updating
+
+Updating replaces the app and keeps your `config` folder, so your settings, recipients and
+newsletters stay exactly as they are.
+
+**Docker Compose** — from the folder with your `docker-compose.yml`:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+**docker run** — pull the new image, remove the old container, then run your original
+`docker run` command again with the same `/config` folder:
+
+```bash
+docker pull ghcr.io/jeff-blep/newzlettr:latest
+docker stop newzlettr && docker rm newzlettr
+docker run -d --name newzlettr ...   # the same command you installed with
+```
+
+**Other setups:**
+
+- **Unraid** — on the Docker tab, click **Check for Updates**, then **Update** on Newzlettr.
+- **Portainer** — open the container, choose **Recreate** and turn on **Pull latest image**.
+- **Synology Container Manager** — under **Image**, choose **Update** when it says one is available.
+- **Watchtower** — updates Newzlettr automatically; nothing to do.
+
+To check it worked, look at the version under **System → Status**.
+
 ## Upgrading from v1
 
 Go to **System → Backup → Import from Newzlettr v1** and select your four v1 files:
