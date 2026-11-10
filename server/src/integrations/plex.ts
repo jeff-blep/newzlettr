@@ -1,6 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Section } from "../settings.js";
+import { logger } from "../logging.js";
 import { HttpError, httpFetch, httpJson, normalizeBaseUrl } from "./http.js";
+
+const log = logger("plex");
 
 export interface PlexItem {
   ratingKey: string;
@@ -43,7 +46,25 @@ export interface LibraryTotals {
   movies: number;
   shows: number;
   episodes: number;
-  sections: { key: string; title: string; type: string }[];
+  sections: PlexSection[];
+}
+
+export interface PlexSection {
+  key: string;
+  title: string;
+  /** movie | show | artist | photo — Plex reports "Other Videos" libraries as "movie" too. */
+  type: string;
+  agent?: string;
+}
+
+/**
+ * Only libraries created as Plex's "Movies" or "TV Shows" category count toward the totals.
+ * "Other Videos" (home videos, DVR recordings, …) shares type "movie"/"show" but uses the
+ * no-metadata agent (tv.plex.agents.none, legacy com.plexapp.agents.none), so that's the tell.
+ */
+export function countedKind(s: PlexSection): "movie" | "show" | null {
+  if (s.agent && /\.none$/i.test(s.agent)) return null;
+  return s.type === "movie" || s.type === "show" ? s.type : null;
 }
 
 type MC<T> = { MediaContainer: T };
@@ -124,9 +145,9 @@ export class PlexClient {
     return parseSharedUsers(await res.text());
   }
 
-  async sections(): Promise<{ key: string; title: string; type: string }[]> {
-    const r = await this.get<MC<{ Directory?: { key: string; title: string; type: string }[] }>>("/library/sections");
-    return (r.MediaContainer.Directory ?? []).map(({ key, title, type }) => ({ key, title, type }));
+  async sections(): Promise<PlexSection[]> {
+    const r = await this.get<MC<{ Directory?: PlexSection[] }>>("/library/sections");
+    return (r.MediaContainer.Directory ?? []).map(({ key, title, type, agent }) => ({ key, title, type, agent }));
   }
 
   private async count(sectionKey: string, type: number): Promise<number> {
@@ -140,17 +161,29 @@ export class PlexClient {
 
   async libraryTotals(): Promise<LibraryTotals> {
     const sections = await this.sections();
-    const totals: LibraryTotals = { movies: 0, shows: 0, episodes: 0, sections };
-    await Promise.all(
+    // Count every library first, then add up. (Summing with `totals.movies += await …` inside
+    // Promise.all read the old total before the await, so the last library to answer won.)
+    const counts = await Promise.all(
       sections.map(async (s) => {
-        if (s.type === "movie") totals.movies += await this.count(s.key, 1);
-        if (s.type === "show") {
-          const [shows, eps] = await Promise.all([this.count(s.key, 2), this.count(s.key, 4)]);
-          totals.shows += shows;
-          totals.episodes += eps;
+        const kind = countedKind(s);
+        if (kind === "movie") return { movies: await this.count(s.key, 1), shows: 0, episodes: 0 };
+        if (kind === "show") {
+          const [shows, episodes] = await Promise.all([this.count(s.key, 2), this.count(s.key, 4)]);
+          return { movies: 0, shows, episodes };
         }
+        return { movies: 0, shows: 0, episodes: 0 };
       }),
     );
+    log.debug(
+      { libraries: sections.map((s, i) => ({ title: s.title, type: s.type, agent: s.agent, counted: countedKind(s) !== null, ...counts[i] })) },
+      "plex library totals",
+    );
+    const totals: LibraryTotals = { movies: 0, shows: 0, episodes: 0, sections };
+    for (const c of counts) {
+      totals.movies += c.movies;
+      totals.shows += c.shows;
+      totals.episodes += c.episodes;
+    }
     return totals;
   }
 
