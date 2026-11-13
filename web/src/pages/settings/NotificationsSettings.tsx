@@ -1,4 +1,4 @@
-import { Alert, Anchor, Center, Checkbox, List, Loader, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { Alert, Anchor, Center, List, Loader, Switch, Text, TextInput } from "@mantine/core";
 import { testSection, useDraft, useSaveSection, useSection } from "../../api/sections";
 import { FormRow, SettingsSection } from "../../components/FormRow";
 import { notifyError, notifyOk } from "../../components/notify";
@@ -63,23 +63,17 @@ export function NotificationsSettings() {
       </SettingsSection>
 
       <SettingsSection title="Notify Me When">
+        <FormRow label="Sent" help="A newsletter went out.">
+          <Switch checked={d.onSent} onChange={(e) => n.set("onSent", e.currentTarget.checked)} />
+        </FormRow>
+        <FormRow label="Failed" help="A newsletter didn't send, or some people didn't get it.">
+          <Switch checked={d.onFailed} onChange={(e) => n.set("onFailed", e.currentTarget.checked)} />
+        </FormRow>
+        <FormRow label="Skipped" help="A scheduled newsletter was skipped because Newzlettr was off at the time.">
+          <Switch checked={d.onSkipped} onChange={(e) => n.set("onSkipped", e.currentTarget.checked)} />
+        </FormRow>
         <FormRow label="">
-          <Stack gap="sm">
-            <Checkbox label="A newsletter goes out" checked={d.onSent} onChange={(e) => n.set("onSent", e.currentTarget.checked)} />
-            <Checkbox
-              label="A newsletter fails to send"
-              description="Also covers sends where some people didn't get it."
-              checked={d.onFailed}
-              onChange={(e) => n.set("onFailed", e.currentTarget.checked)}
-            />
-            <Checkbox
-              label="A scheduled newsletter is skipped"
-              description="Happens when Newzlettr was off at the scheduled time."
-              checked={d.onSkipped}
-              onChange={(e) => n.set("onSkipped", e.currentTarget.checked)}
-            />
-            <Text size="xs" c="dimmed">Test emails never send a notification.</Text>
-          </Stack>
+          <Text size="xs" c="dimmed">Turn on any mix. Test emails never send a notification.</Text>
         </FormRow>
       </SettingsSection>
     </>
