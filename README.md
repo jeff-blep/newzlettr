@@ -40,6 +40,7 @@ Radarr, it'll feel familiar.
 **Everything else**
 - **Stats page** — library totals, what's been watched, and what people watch on.
 - **Privacy** — keep your own viewing (or anyone's) out of the *Most watched* lists.
+- **Telegram notifications** — get a message when a newsletter goes out, fails, or is skipped.
 - **Posters** — attached to the email, or hosted on Cloudinary for smaller emails.
 - **Password protected**, with health checks, logs and backups built in.
 

@@ -64,6 +64,16 @@ export const contentSchema = z.object({
   includeWatchLinks: z.boolean().default(true),
 });
 
+export const notificationsSchema = z.object({
+  telegramEnabled: z.boolean().default(false),
+  telegramBotToken: z.string().trim().default(""),
+  /** A user id, group id (negative) or @channelname. */
+  telegramChatId: z.string().trim().default(""),
+  onSent: z.boolean().default(true),
+  onFailed: z.boolean().default(true),
+  onSkipped: z.boolean().default(true),
+});
+
 /** A newsletter's look. dark/light = that design for everyone; auto = light, switching to dark where supported. */
 export const EMAIL_THEMES = ["dark", "light", "auto"] as const;
 export type EmailTheme = (typeof EMAIL_THEMES)[number];
@@ -87,6 +97,7 @@ export const SECTIONS = {
   smtp: smtpSchema,
   images: imagesSchema,
   content: contentSchema,
+  notifications: notificationsSchema,
 } as const;
 
 /** Fields never sent to the browser in clear text. */
@@ -95,6 +106,7 @@ export const SECRET_FIELDS: { [N in SectionName]?: string[] } = {
   tautulli: ["apiKey"],
   smtp: ["password"],
   images: ["apiSecret"],
+  notifications: ["telegramBotToken"],
 };
 export const MASK = "********";
 

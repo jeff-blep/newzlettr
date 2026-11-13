@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { HealthResponse, SettingsSections, TestResult } from "../../../shared/types";
 import { get, post, put } from "./client";
 
-export type EditableSection = "plex" | "tautulli" | "smtp" | "images" | "content";
+export type EditableSection = "plex" | "tautulli" | "smtp" | "images" | "content" | "notifications";
 
 const key = (s: EditableSection) => ["settings", s] as const;
 

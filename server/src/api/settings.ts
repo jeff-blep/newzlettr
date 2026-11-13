@@ -6,6 +6,7 @@ import { invalidateSmtpHealth, refreshHealthInBackground } from "../health.js";
 import { clearFolder, clearUsageCache, cloudinaryUsage, pingCloudinary } from "../integrations/cloudinary.js";
 import { normalizeBaseUrl } from "../integrations/http.js";
 import { testSmtp } from "../integrations/mail.js";
+import { sendTelegram } from "../notify/telegram.js";
 import { PlexClient } from "../integrations/plex.js";
 import { TautulliClient } from "../integrations/tautulli.js";
 import { setLogLevel, logger } from "../logging.js";
@@ -24,7 +25,7 @@ import {
   unmaskPatch,
 } from "../settings.js";
 
-const EDITABLE = ["plex", "tautulli", "smtp", "images", "content"] as const satisfies readonly SectionName[];
+const EDITABLE = ["plex", "tautulli", "smtp", "images", "content", "notifications"] as const satisfies readonly SectionName[];
 type Editable = (typeof EDITABLE)[number];
 const isEditable = (s: string): s is Editable => (EDITABLE as readonly string[]).includes(s);
 
@@ -104,6 +105,19 @@ export function settingsRouter(db: DB): Router {
       case "images":
         result = await pingCloudinary(draft as ReturnType<typeof SECTIONS.images.parse>);
         break;
+      case "notifications": {
+        const cfg = draft as ReturnType<typeof SECTIONS.notifications.parse>;
+        try {
+          await sendTelegram(
+            { botToken: cfg.telegramBotToken, chatId: cfg.telegramChatId },
+            "👋 <b>Newzlettr</b> test message. Notifications are working.",
+          );
+          result = { ok: true, message: "Test message sent. Check Telegram." };
+        } catch (e) {
+          result = { ok: false, message: (e as Error).message };
+        }
+        break;
+      }
       default:
         return res.status(404).json({ error: "this section has no test" });
     }
