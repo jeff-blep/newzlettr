@@ -86,6 +86,15 @@ export interface ContentSettings {
   excludedUserIds: number[];
 }
 
+export interface NotificationSettings {
+  telegramEnabled: boolean;
+  telegramBotToken: string; // "********" when set
+  telegramChatId: string;
+  onSent: boolean;
+  onFailed: boolean;
+  onSkipped: boolean;
+}
+
 export interface WatchUser {
   userId: number;
   name: string;
@@ -99,6 +108,7 @@ export interface SettingsSections {
   smtp: SmtpSettings;
   images: ImagesSettings;
   content: ContentSettings;
+  notifications: NotificationSettings;
 }
 
 /* -------------------------------- templates -------------------------------- */

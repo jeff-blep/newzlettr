@@ -40,6 +40,7 @@ Radarr, it'll feel familiar.
 **Everything else**
 - **Stats page** — library totals, what's been watched, and what people watch on.
 - **Privacy** — keep your own viewing (or anyone's) out of the *Most watched* lists.
+- **Telegram notifications** — get a message when a newsletter goes out, fails, or is skipped.
 - **Posters** — attached to the email, or hosted on Cloudinary for smaller emails.
 - **Password protected**, with health checks, logs and backups built in.
 
@@ -55,6 +56,8 @@ You'll need:
 - **Docker** — to run Newzlettr.
 - **[Cloudinary](https://cloudinary.com)** *(optional)* — a free account hosts the poster images
   so the emails stay small. Without it, posters are attached to each email instead.
+- **[Telegram](https://telegram.org)** *(optional)* — if you'd like a message when a newsletter
+  goes out or something goes wrong.
 
 ## Install
 
@@ -100,8 +103,10 @@ you've backed up everything.
 3. **Settings → Email** — enter your email account details and press **Test**
    (see [Email](#email)).
 4. **Settings → Images** *(optional)* — choose Cloudinary and enter your account details.
-5. **Recipients → People → Import from Plex**, then put people on **Lists** if you like.
-6. **Templates → New Template** to write your newsletter, then **Newsletters → New Newsletter**
+5. **Settings → Notifications** *(optional)* — set up Telegram messages
+   (see [Notifications](#notifications)).
+6. **Recipients → People → Import from Plex**, then put people on **Lists** if you like.
+7. **Templates → New Template** to write your newsletter, then **Newsletters → New Newsletter**
    to pick the template, look, schedule and who gets it. Send yourself a test before turning it on.
 
 ### Email
@@ -116,6 +121,26 @@ search "*your provider* SMTP settings" if you're not sure:
   **app password** made in your account's security settings, not your normal password
 
 Use **Send Test Email** on the Email settings page to make sure it works.
+
+### Notifications
+
+Newzlettr can send you a Telegram message about your newsletters. Turn on any mix of:
+
+- **Sent** — a newsletter went out, and to how many people
+- **Failed** — a newsletter didn't send, or some people didn't get it (with the reason)
+- **Skipped** — a scheduled newsletter was skipped because Newzlettr was off at the time
+
+To set it up:
+
+1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the
+   token it gives you.
+2. Open your new bot and press **Start** (or add it to a group), so it's allowed to message you.
+3. Get your chat ID by messaging [@userinfobot](https://t.me/userinfobot).
+4. In **Settings → Notifications**, paste the token and chat ID, turn on **Enable**, pick which
+   messages you want, and press **Send Test Message**.
+
+Test emails never send a notification. If you fill in **Application URL** in Settings → General,
+each message includes a link to the Activity page.
 
 ### Dark, light, or match the reader
 

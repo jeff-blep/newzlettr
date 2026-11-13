@@ -1,6 +1,6 @@
 {
   "name": "newzlettr",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "private": true,
   "description": "Self-hosted Plex newsletter, styled after the *arr apps",
   "license": "MIT",

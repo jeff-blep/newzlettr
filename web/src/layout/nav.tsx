@@ -15,6 +15,7 @@ import { SystemTasks } from "../pages/system/SystemTasks";
 import { ConnectionsSettings } from "../pages/settings/ConnectionsSettings";
 import { EmailSettings } from "../pages/settings/EmailSettings";
 import { ImagesSettings } from "../pages/settings/ImagesSettings";
+import { NotificationsSettings } from "../pages/settings/NotificationsSettings";
 import { RecipientsPage } from "../pages/RecipientsPage";
 import { ListsPage } from "../pages/ListsPage";
 import { IgnoredPage } from "../pages/IgnoredPage";
@@ -95,6 +96,7 @@ export const NAV: NavItem[] = [
       { label: "Connections", path: "/settings/connections", element: <ConnectionsSettings /> },
       { label: "Email", path: "/settings/email", element: <EmailSettings /> },
       { label: "Images", path: "/settings/images", element: <ImagesSettings /> },
+      { label: "Notifications", path: "/settings/notifications", element: <NotificationsSettings /> },
       { label: "Content", path: "/settings/content", element: <ContentSettings /> },
     ],
   },

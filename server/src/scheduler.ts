@@ -1,7 +1,8 @@
 import type { HealthCheck } from "../../shared/types.js";
 import type { DB } from "./db/index.js";
 import { logger } from "./logging.js";
-import { cronOf, type NewsletterRow, sendNewsletter, SlotTakenError, audience } from "./mail/newsletter.js";
+import { cronOf, type NewsletterRow, sendNewsletter, SlotTakenError, audience, toSendRecord } from "./mail/newsletter.js";
+import { notifySendInBackground } from "./notify/index.js";
 import { slotsBetween, validateCron } from "./schedule.js";
 import { effectiveTimezone } from "./settings.js";
 
@@ -41,6 +42,7 @@ export async function runDueNewsletters(db: DB, now = new Date()): Promise<{ sen
           .run(row.id, row.name, iso, `Missed: Newzlettr wasn't running at the scheduled time (noticed ${Math.round(late / 60000)} min late)`);
         if (Number(res.changes)) {
           skipped++;
+          notifySendInBackground(db, toSendRecord(db.prepare("SELECT * FROM sends WHERE id = ?").get(res.lastInsertRowid) as Record<string, unknown>));
           log.warn({ newsletter: row.name, slot: iso }, "missed scheduled send");
         }
         continue;

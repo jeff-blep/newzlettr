@@ -7,6 +7,7 @@ import { renderNewsletter } from "../render/render.js";
 import { htmlToText } from "../render/sanitize.js";
 import { DEFAULT_LOOK, EMAIL_THEMES, type EmailTheme, getSection, HEX_COLOR, type Look, DEFAULT_HISTORY_DAYS } from "../settings.js";
 import { sendMail } from "./send.js";
+import { notifySendInBackground } from "../notify/index.js";
 
 const log = logger("newsletter");
 
@@ -121,7 +122,9 @@ export async function sendNewsletter(
       error,
       sendId,
     );
-    return toSendRecord(db.prepare("SELECT * FROM sends WHERE id = ?").get(sendId) as Record<string, unknown>);
+    const record = toSendRecord(db.prepare("SELECT * FROM sends WHERE id = ?").get(sendId) as Record<string, unknown>);
+    notifySendInBackground(db, record);
+    return record;
   };
 
   try {
