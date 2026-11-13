@@ -169,7 +169,8 @@ async function loadHostPick(db: DB, warnings: string[]): Promise<HostPickData | 
         subtitle: ep ? episodeLabel(m) : undefined,
         year: m.year,
         thumb: ep ? (m.grandparentThumb ?? m.thumb) : m.thumb,
-        summary: m.summary,
+        // For an episode, the host's note says why - no episode synopsis.
+        summary: ep ? undefined : m.summary,
         genres: (m.Genre ?? []).map((g) => g.tag),
         contentRating: m.contentRating,
         minutes: m.duration ? Math.round(m.duration / 60000) : undefined,

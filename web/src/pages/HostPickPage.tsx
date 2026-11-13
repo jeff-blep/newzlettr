@@ -110,7 +110,7 @@ export function HostPickPage() {
                   <Badge variant="light" size="sm" w="fit-content">
                     {TYPE_LABEL[item.type ?? ""] ?? item.type}
                   </Badge>
-                  {item.summary && (
+                  {item.summary && item.type !== "episode" && (
                     <Text size="sm" c="gray.4" lineClamp={5}>
                       {item.summary}
                     </Text>
