@@ -17,7 +17,10 @@ export interface PlexItem {
   grandparentTitle?: string;
   grandparentThumb?: string;
   grandparentRatingKey?: string;
+  parentRatingKey?: string;
   parentTitle?: string;
+  /** Episodes in a show/season. */
+  leafCount?: number;
   parentIndex?: number;
   index?: number;
   addedAt?: number;
@@ -195,6 +198,12 @@ export class PlexClient {
       if (e instanceof HttpError && e.status === 404) return null;
       throw e;
     }
+  }
+
+  /** Seasons of a show, or episodes of a season, in Plex order. */
+  async children(ratingKey: string): Promise<PlexItem[]> {
+    const r = await this.get<MC<{ Metadata?: PlexItem[] }>>(`/library/metadata/${encodeURIComponent(ratingKey)}/children`);
+    return r.MediaContainer.Metadata ?? [];
   }
 
   async search(query: string, limit = 12): Promise<PlexItem[]> {

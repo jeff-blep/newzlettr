@@ -8,6 +8,8 @@ import {
   Combobox,
   Group,
   Loader,
+  SegmentedControl,
+  Select,
   Stack,
   Text,
   Textarea,
@@ -18,7 +20,7 @@ import {
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconSearch, IconX } from "@tabler/icons-react";
 import type { MediaRef } from "../../../shared/types";
-import { useHostPick, usePlexSearch, useSaveHostPick } from "../api/media";
+import { useHostPick, usePlexChildren, usePlexItem, usePlexSearch, useSaveHostPick } from "../api/media";
 import { FormRow, SettingsSection } from "../components/FormRow";
 import { notifyError, notifyOk } from "../components/notify";
 import { PageToolbar } from "../components/PageToolbar";
@@ -30,13 +32,16 @@ export function HostPickPage() {
   const save = useSaveHostPick();
   const [item, setItem] = useState<MediaRef | null>(null);
   const [note, setNote] = useState("");
+  const [kind, setKind] = useState<Kind>("movie");
 
   useEffect(() => {
     if (data) {
       setItem(data.item);
       setNote(data.note);
+      setKind(kindOf(data.item));
     }
   }, [data]);
+  const showKey = showKeyOf(item);
 
   const dirty = !!data && ((item?.ratingKey ?? null) !== (data.item?.ratingKey ?? data.plexItemId) || note !== data.note);
   const guard = useUnsavedChanges(dirty);
@@ -63,9 +68,24 @@ export function HostPickPage() {
       </Text>
 
       <SettingsSection title="Title">
-        <FormRow label="Search Plex">
-          <PlexSearch onPick={setItem} />
+        <FormRow label="Type">
+          <SegmentedControl
+            value={kind}
+            onChange={(v) => setKind(v as Kind)}
+            data={[
+              { value: "movie", label: "Movie" },
+              { value: "tv", label: "TV Show" },
+            ]}
+          />
         </FormRow>
+        <FormRow label="Search Plex">
+          <PlexSearch key={kind} type={kind === "tv" ? "show" : "movie"} onPick={setItem} />
+        </FormRow>
+        {kind === "tv" && showKey && (
+          <FormRow label="Feature">
+            <ShowOptions key={showKey} item={item!} showKey={showKey} onChange={setItem} />
+          </FormRow>
+        )}
         <FormRow label="Selected">
           {data.itemError && !item && (
             <Alert color="yellow" variant="light" mb="sm">
@@ -88,7 +108,7 @@ export function HostPickPage() {
                   </Group>
                   {item.subtitle && <Text size="sm" c="dimmed">{item.subtitle}</Text>}
                   <Badge variant="light" size="sm" w="fit-content">
-                    {item.type}
+                    {TYPE_LABEL[item.type ?? ""] ?? item.type}
                   </Badge>
                   {item.summary && (
                     <Text size="sm" c="gray.4" lineClamp={5}>
@@ -118,10 +138,83 @@ export function HostPickPage() {
   );
 }
 
-function PlexSearch({ onPick }: { onPick: (m: MediaRef) => void }) {
+type Kind = "movie" | "tv";
+const TYPE_LABEL: Record<string, string> = { movie: "Movie", show: "Whole series", episode: "Episode", season: "Season" };
+const kindOf = (m: MediaRef | null): Kind => (m && m.type !== "movie" ? "tv" : "movie");
+/** The show a TV pick belongs to (the pick itself when it's the whole series). */
+const showKeyOf = (m: MediaRef | null) => (m?.type === "show" ? m.ratingKey : m?.type === "episode" || m?.type === "season" ? m.showRatingKey : undefined);
+
+/** "S2E1 · Merger" -> "Merger" (an episode ref's title is the show's name). */
+const episodeName = (m: MediaRef) => m.subtitle?.split(" · ").slice(1).join(" · ") || m.title;
+
+/** Whole series, or one episode picked by season then episode. */
+function ShowOptions({ item, showKey, onChange }: { item: MediaRef; showKey: string; onChange: (m: MediaRef) => void }) {
+  const [mode, setMode] = useState<"series" | "episode">(item.type === "episode" ? "episode" : "series");
+  const [seasonKey, setSeasonKey] = useState<string | null>(item.type === "episode" ? (item.seasonRatingKey ?? null) : null);
+  const showQ = usePlexItem(item.type === "show" ? undefined : showKey);
+  const show = item.type === "show" ? item : showQ.data;
+  const seasons = usePlexChildren(mode === "episode" ? showKey : undefined);
+  const episodes = usePlexChildren(mode === "episode" && seasonKey ? seasonKey : undefined);
+
+  // A show with one season: pick it automatically.
+  useEffect(() => {
+    if (mode === "episode" && !seasonKey && seasons.data?.length === 1) setSeasonKey(seasons.data[0]!.ratingKey ?? null);
+  }, [mode, seasonKey, seasons.data]);
+
+  return (
+    <Stack gap="sm" maw={520}>
+      <SegmentedControl
+        style={{ alignSelf: "flex-start" }}
+        value={mode}
+        onChange={(v) => {
+          setMode(v as "series" | "episode");
+          if (v === "series" && show) onChange(show);
+        }}
+        data={[
+          { value: "series", label: "Whole series" },
+          { value: "episode", label: "One episode" },
+        ]}
+      />
+      {mode === "episode" && (
+        <Group grow align="flex-start">
+          <Select
+            label="Season"
+            placeholder={seasons.isPending ? "Loading…" : "Pick a season"}
+            data={(seasons.data ?? []).map((x) => ({ value: x.ratingKey ?? "", label: x.title }))}
+            value={seasonKey}
+            onChange={setSeasonKey}
+            allowDeselect={false}
+            error={seasons.error ? String(seasons.error) : undefined}
+          />
+          <Select
+            label="Episode"
+            placeholder={!seasonKey ? "Pick a season first" : episodes.isPending ? "Loading…" : "Pick an episode"}
+            disabled={!seasonKey}
+            searchable
+            data={(episodes.data ?? []).map((x) => ({ value: x.ratingKey ?? "", label: `${x.index ?? "?"}. ${episodeName(x)}` }))}
+            value={item.type === "episode" && item.seasonRatingKey === seasonKey ? (item.ratingKey ?? null) : null}
+            onChange={(k) => {
+              const ep = episodes.data?.find((x) => x.ratingKey === k);
+              if (ep) onChange(ep);
+            }}
+            allowDeselect={false}
+            error={episodes.error ? String(episodes.error) : undefined}
+          />
+        </Group>
+      )}
+      {mode === "episode" && item.type !== "episode" && (
+        <Text size="xs" c="dimmed">
+          Until you pick an episode, the whole series is featured.
+        </Text>
+      )}
+    </Stack>
+  );
+}
+
+function PlexSearch({ onPick, type }: { onPick: (m: MediaRef) => void; type: "movie" | "show" }) {
   const [q, setQ] = useState("");
   const [debounced] = useDebouncedValue(q, 300);
-  const results = usePlexSearch(debounced);
+  const results = usePlexSearch(debounced, type);
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const items = results.data ?? [];
 
@@ -139,7 +232,7 @@ function PlexSearch({ onPick }: { onPick: (m: MediaRef) => void }) {
         <TextInput
           leftSection={<IconSearch size={16} />}
           rightSection={results.isFetching ? <Loader size={14} /> : null}
-          placeholder="Start typing a movie or show…"
+          placeholder={type === "show" ? "Start typing a TV show…" : "Start typing a movie…"}
           value={q}
           onChange={(e) => {
             setQ(e.currentTarget.value);
@@ -164,8 +257,11 @@ function PlexSearch({ onPick }: { onPick: (m: MediaRef) => void }) {
                     {m.year ? ` (${m.year})` : ""}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {m.subtitle ? `${m.subtitle} · ` : ""}
-                    {m.type}
+                    {m.type === "show"
+                      ? m.episodeCount
+                        ? `${m.episodeCount} episodes`
+                        : "TV show"
+                      : (m.subtitle ?? "Movie")}
                   </Text>
                 </div>
               </Group>

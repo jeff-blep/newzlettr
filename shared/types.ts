@@ -226,6 +226,15 @@ export interface MediaRef {
   summary?: string;
   type?: string;
   addedAt?: number;
+  /** Episode/season number, and season number for episodes. */
+  index?: number;
+  parentIndex?: number;
+  /** For episodes and seasons: the show they belong to. */
+  showRatingKey?: string;
+  /** For episodes: the season they belong to. */
+  seasonRatingKey?: string;
+  /** Episodes in a show or season. */
+  episodeCount?: number;
 }
 
 export interface PlatformStat {

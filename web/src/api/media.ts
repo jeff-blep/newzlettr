@@ -46,13 +46,32 @@ export function useUnignore() {
 
 /* --------------------------------- media --------------------------------- */
 
-export function usePlexSearch(q: string) {
+export function usePlexSearch(q: string, type?: "movie" | "show") {
   return useQuery({
-    queryKey: ["plex", "search", q],
-    queryFn: () => get<MediaRef[]>(`/api/plex/search?q=${encodeURIComponent(q)}`),
+    queryKey: ["plex", "search", q, type ?? "all"],
+    queryFn: () => get<MediaRef[]>(`/api/plex/search?q=${encodeURIComponent(q)}${type ? `&type=${type}` : ""}`),
     enabled: q.trim().length >= 2,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
+  });
+}
+
+/** Seasons of a show, or episodes of a season. */
+export function usePlexChildren(ratingKey: string | undefined) {
+  return useQuery({
+    queryKey: ["plex", "children", ratingKey],
+    queryFn: () => get<MediaRef[]>(`/api/plex/children/${ratingKey}`),
+    enabled: !!ratingKey,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePlexItem(ratingKey: string | undefined) {
+  return useQuery({
+    queryKey: ["plex", "item", ratingKey],
+    queryFn: () => get<MediaRef>(`/api/plex/item/${ratingKey}`),
+    enabled: !!ratingKey,
+    staleTime: 5 * 60_000,
   });
 }
 

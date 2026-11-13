@@ -24,8 +24,15 @@ export function plexItemToRef(m: PlexItem): MediaRef {
     summary: m.summary,
     type: m.type,
     addedAt: m.addedAt,
+    index: m.index,
+    parentIndex: m.parentIndex,
+    showRatingKey: ep ? m.grandparentRatingKey : m.type === "season" ? m.parentRatingKey : undefined,
+    seasonRatingKey: ep ? m.parentRatingKey : undefined,
+    episodeCount: m.leafCount,
   };
 }
+
+const RATING_KEY = /^\d+$/;
 
 /** Only real Plex library image paths may be proxied (v1 proxied arbitrary URLs = SSRF). */
 const IMAGE_PATH = /^\/library\/metadata\/\d+\/(thumb|art|grandparentThumb|parentThumb)(\/\d+)?$/;
@@ -36,11 +43,13 @@ export function mediaRouter(db: DB): Router {
 
   /* --------------------------------- plex --------------------------------- */
 
+  /** ?type=movie or ?type=show narrows the results to that kind (Host's Pick tabs). */
   r.get("/plex/search", async (req, res) => {
     const q = String(req.query.q ?? "").trim();
     if (q.length < 2) return res.json([]);
-    const items = await plexClient(db).search(q, 10);
-    const rank: Record<string, number> = { movie: 0, show: 0, episode: 1 };
+    const only = req.query.type === "movie" || req.query.type === "show" ? req.query.type : null;
+    const items = await plexClient(db).search(q, only ? 15 : 10);
+    const rank: Record<string, number> = only ? { [only]: 0 } : { movie: 0, show: 0, episode: 1 };
     res.json(
       items
         .filter((m) => m.type in rank)
@@ -48,6 +57,21 @@ export function mediaRouter(db: DB): Router {
         .slice(0, 15)
         .map(plexItemToRef),
     );
+  });
+
+  /** One item (e.g. the show an episode belongs to). */
+  r.get("/plex/item/:ratingKey", async (req, res) => {
+    if (!RATING_KEY.test(req.params.ratingKey)) return res.status(400).json({ error: "invalid Plex item" });
+    const m = await plexClient(db).metadata(req.params.ratingKey);
+    if (!m) return res.status(404).json({ error: "Not in your Plex library" });
+    res.json(plexItemToRef(m));
+  });
+
+  /** Seasons of a show, or episodes of a season. */
+  r.get("/plex/children/:ratingKey", async (req, res) => {
+    if (!RATING_KEY.test(req.params.ratingKey)) return res.status(400).json({ error: "invalid Plex item" });
+    const kids = await plexClient(db).children(req.params.ratingKey);
+    res.json(kids.filter((k) => k.type === "season" || k.type === "episode").map(plexItemToRef));
   });
 
   r.get("/plex/image", async (req, res) => {
