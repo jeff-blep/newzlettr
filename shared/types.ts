@@ -235,6 +235,8 @@ export interface MediaRef {
   seasonRatingKey?: string;
   /** Episodes in a show or season. */
   episodeCount?: number;
+  /** For episodes: the episode's own title (`title` is the show's name). */
+  episodeTitle?: string;
 }
 
 export interface PlatformStat {

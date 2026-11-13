@@ -16,7 +16,8 @@ describe("Host's Pick refs", () => {
     });
     expect(r).toMatchObject({
       title: "The Office",
-      subtitle: "S2E1 · Merger",
+      subtitle: "Season 2, Episode 1 – Merger",
+      episodeTitle: "Merger",
       thumb: "/library/metadata/378462/thumb/1",
       showRatingKey: "378462",
       seasonRatingKey: "378470",

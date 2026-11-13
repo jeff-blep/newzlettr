@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { HostPick, MediaRef, WatchUser } from "../../../shared/types.js";
 import type { DB } from "../db/index.js";
 import { getStats } from "../data/stats.js";
-import type { PlexItem } from "../integrations/plex.js";
+import { episodeLabel, type PlexItem } from "../integrations/plex.js";
 import { logger } from "../logging.js";
 import { plexClient, tautulliClient } from "../services.js";
 import { DEFAULT_HISTORY_DAYS } from "../settings.js";
@@ -15,7 +15,7 @@ export function plexItemToRef(m: PlexItem): MediaRef {
     ratingKey: m.ratingKey,
     title: ep ? (m.grandparentTitle ?? m.title) : m.title,
     subtitle: ep
-      ? `S${m.parentIndex ?? "?"}E${m.index ?? "?"} · ${m.title}`
+      ? episodeLabel(m)
       : m.type === "season"
         ? `${m.parentTitle ?? ""} ${m.title}`.trim()
         : undefined,
@@ -29,6 +29,7 @@ export function plexItemToRef(m: PlexItem): MediaRef {
     showRatingKey: ep ? m.grandparentRatingKey : m.type === "season" ? m.parentRatingKey : undefined,
     seasonRatingKey: ep ? m.parentRatingKey : undefined,
     episodeCount: m.leafCount,
+    episodeTitle: ep ? m.title : undefined,
   };
 }
 

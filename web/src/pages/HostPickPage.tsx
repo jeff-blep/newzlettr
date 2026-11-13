@@ -144,8 +144,8 @@ const kindOf = (m: MediaRef | null): Kind => (m && m.type !== "movie" ? "tv" : "
 /** The show a TV pick belongs to (the pick itself when it's the whole series). */
 const showKeyOf = (m: MediaRef | null) => (m?.type === "show" ? m.ratingKey : m?.type === "episode" || m?.type === "season" ? m.showRatingKey : undefined);
 
-/** "S2E1 · Merger" -> "Merger" (an episode ref's title is the show's name). */
-const episodeName = (m: MediaRef) => m.subtitle?.split(" · ").slice(1).join(" · ") || m.title;
+/** An episode ref's title is the show's name; this is the episode's own. */
+const episodeName = (m: MediaRef) => m.episodeTitle ?? m.title;
 
 /** Whole series, or one episode picked by season then episode. */
 function ShowOptions({ item, showKey, onChange }: { item: MediaRef; showKey: string; onChange: (m: MediaRef) => void }) {

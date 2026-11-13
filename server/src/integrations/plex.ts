@@ -237,6 +237,12 @@ export class PlexClient {
   }
 }
 
+/** "Season 2, Episode 3 – Merger" (falls back gracefully when Plex is missing a number). */
+export function episodeLabel(m: Pick<PlexItem, "parentIndex" | "index" | "title">): string {
+  const parts = [m.parentIndex !== undefined ? `Season ${m.parentIndex}` : "", m.index !== undefined ? `Episode ${m.index}` : ""].filter(Boolean).join(", ");
+  return parts ? `${parts} – ${m.title}` : m.title;
+}
+
 /** Link that opens an item in Plex Web for any user with access. */
 export function plexWebLink(machineIdentifier: string, ratingKey: string): string {
   return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=${encodeURIComponent(`/library/metadata/${ratingKey}`)}`;
