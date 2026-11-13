@@ -23,6 +23,8 @@ Radarr, it'll feel familiar.
 - **Easy templates** — write your message like a normal email, then drop in ready-made sections:
   new movies, new episodes, most watched, most popular, server totals, Host's Pick and more. The
   preview shows exactly what people will get.
+- **Host's Pick** — recommend a movie, a whole TV series, or one episode (pick the season, then
+  the episode), with your own note on why. **Watch on Plex** takes people straight to it.
 - **Your look** — each newsletter can be dark, light, or match the reader's phone/computer, with
   your own colour, title and footer.
 - **Schedules** — daily, weekly or monthly, in your time zone. A newsletter never goes out twice,

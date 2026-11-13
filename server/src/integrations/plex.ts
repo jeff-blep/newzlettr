@@ -17,7 +17,10 @@ export interface PlexItem {
   grandparentTitle?: string;
   grandparentThumb?: string;
   grandparentRatingKey?: string;
+  parentRatingKey?: string;
   parentTitle?: string;
+  /** Episodes in a show/season. */
+  leafCount?: number;
   parentIndex?: number;
   index?: number;
   addedAt?: number;
@@ -197,6 +200,12 @@ export class PlexClient {
     }
   }
 
+  /** Seasons of a show, or episodes of a season, in Plex order. */
+  async children(ratingKey: string): Promise<PlexItem[]> {
+    const r = await this.get<MC<{ Metadata?: PlexItem[] }>>(`/library/metadata/${encodeURIComponent(ratingKey)}/children`);
+    return r.MediaContainer.Metadata ?? [];
+  }
+
   async search(query: string, limit = 12): Promise<PlexItem[]> {
     const r = await this.get<MC<{ Hub?: { type: string; Metadata?: PlexItem[] }[] }>>("/hubs/search", {
       query,
@@ -226,6 +235,12 @@ export class PlexClient {
     if (!res.ok) throw new HttpError(`Plex image ${res.status}`, res.status);
     return { bytes: Buffer.from(await res.arrayBuffer()), contentType: res.headers.get("content-type") ?? "image/jpeg" };
   }
+}
+
+/** "Season 2, Episode 3 – Merger" (falls back gracefully when Plex is missing a number). */
+export function episodeLabel(m: Pick<PlexItem, "parentIndex" | "index" | "title">): string {
+  const parts = [m.parentIndex !== undefined ? `Season ${m.parentIndex}` : "", m.index !== undefined ? `Episode ${m.index}` : ""].filter(Boolean).join(", ");
+  return parts ? `${parts} – ${m.title}` : m.title;
 }
 
 /** Link that opens an item in Plex Web for any user with access. */

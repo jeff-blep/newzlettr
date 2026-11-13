@@ -1,7 +1,7 @@
 import type { DB } from "../db/index.js";
 import { recentMovies, recentShows } from "../data/recent.js";
 import { getStats } from "../data/stats.js";
-import { plexWebLink } from "../integrations/plex.js";
+import { episodeLabel, plexWebLink } from "../integrations/plex.js";
 import { logger } from "../logging.js";
 import { plexClient, plexMachineId } from "../services.js";
 import { DEFAULT_LOOK, effectiveTimezone, getSection, type Look } from "../settings.js";
@@ -166,10 +166,11 @@ async function loadHostPick(db: DB, warnings: string[]): Promise<HostPickData | 
       item: {
         ratingKey: m.ratingKey,
         title: ep ? (m.grandparentTitle ?? m.title) : m.title,
-        subtitle: ep ? `S${m.parentIndex}E${m.index} · ${m.title}` : undefined,
+        subtitle: ep ? episodeLabel(m) : undefined,
         year: m.year,
         thumb: ep ? (m.grandparentThumb ?? m.thumb) : m.thumb,
-        summary: m.summary,
+        // For an episode, the host's note says why - no episode synopsis.
+        summary: ep ? undefined : m.summary,
         genres: (m.Genre ?? []).map((g) => g.tag),
         contentRating: m.contentRating,
         minutes: m.duration ? Math.round(m.duration / 60000) : undefined,
