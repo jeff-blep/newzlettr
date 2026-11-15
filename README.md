@@ -26,7 +26,8 @@ Radarr, it'll feel familiar.
 - **Host's Pick** — recommend a movie, a whole TV series, or one episode (pick the season, then
   the episode), with your own note on why. **Watch on Plex** takes people straight to it.
 - **Your look** — each newsletter can be dark, light, or match the reader's phone/computer, with
-  your own colour, title and footer.
+  your own colour, title and footer. Sending from a no-reply address? Switch off the "Reply to
+  this email" line (or the whole standard footer) in the newsletter's Look settings.
 - **Schedules** — daily, weekly or monthly, in your time zone. A newsletter never goes out twice,
   and one missed while the server was off won't show up late.
 - **Preview, send a test to yourself, or send now** — and an **Activity** page showing every
