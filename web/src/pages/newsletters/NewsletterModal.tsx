@@ -35,9 +35,11 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
           accentColor: newsletter.accentColor,
           headerTitle: newsletter.headerTitle,
           footerText: newsletter.footerText,
+          showMembershipLine: newsletter.showMembershipLine,
+          inviteReplies: newsletter.inviteReplies,
           enabled: newsletter.enabled,
         }
-      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: 7, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", enabled: false },
+      : { name: "", subject: "", templateId: null, cron: DEFAULT_CRON, historyDays: 7, sendAsBcc: true, allRecipients: false, listIds: [], recipientIds: [], emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", showMembershipLine: true, inviteReplies: true, enabled: false },
   );
   const set = <K extends keyof NewsletterInput>(k: K, v: NewsletterInput[K]) => setD((x) => ({ ...x, [k]: v }));
 
@@ -111,12 +113,23 @@ export function NewsletterModal({ newsletter, onClose }: { newsletter: Newslette
               />
               <Textarea
                 label="Footer"
-                description="Optional line above the standard footer (e.g. how to reach you, or how to donate)."
+                description="Optional text at the bottom of the email (e.g. how to reach you, or how to donate)."
                 value={d.footerText}
                 onChange={(e) => set("footerText", e.currentTarget.value)}
                 autosize
                 minRows={2}
                 maxLength={500}
+              />
+              <Switch
+                label="Show “You're receiving this because you're part of …”"
+                checked={d.showMembershipLine}
+                onChange={(e) => set("showMembershipLine", e.currentTarget.checked)}
+              />
+              <Switch
+                label="Show “Reply to this email to get in touch.”"
+                description="Turn off if you send from a no-reply address."
+                checked={d.inviteReplies}
+                onChange={(e) => set("inviteReplies", e.currentTarget.checked)}
               />
             </Stack>
           </div>

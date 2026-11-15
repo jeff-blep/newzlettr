@@ -181,4 +181,13 @@ export const MIGRATIONS: Migration[] = [
       WHERE history_days IS NULL;
     `,
   },
+  {
+    version: 8,
+    name: "footer switches",
+    sql: `
+      -- Both on = the footer every newsletter had before (nothing changes until someone switches one off).
+      ALTER TABLE newsletters ADD COLUMN show_membership_line INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE newsletters ADD COLUMN invite_replies INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
 ];

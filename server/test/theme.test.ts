@@ -81,6 +81,27 @@ describe("per-newsletter look", () => {
     expect(h).toContain("Venmo: @someone");
   });
 
+  it("footer switches: default line by default, each half can be turned off", async () => {
+    const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nz-foot-")), "t.db"));
+    const render = async (look: Record<string, unknown>) =>
+      (await renderNewsletter(db, { templateHtml: "<p>Hi</p>", days: 7, look: { headerTitle: "KunkFlix Newsletter", ...look } })).html;
+    const both = await render({});
+    expect(both).toContain("You're receiving this because you're part of KunkFlix. Reply to this email to get in touch.");
+    const noReply = await render({ inviteReplies: false });
+    expect(noReply).toContain("You're receiving this because you're part of KunkFlix.");
+    expect(noReply).not.toContain("Reply to this email");
+    const neither = await render({ inviteReplies: false, showMembershipLine: false, footerText: "Sent from a no-reply address" });
+    expect(neither).not.toContain("You're receiving this");
+    expect(neither).not.toContain("Reply to this email");
+    expect(neither).toContain("Sent from a no-reply address");
+  });
+
+  it("existing newsletters keep the full footer after migration 8", () => {
+    const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nz-foot-")), "t.db"));
+    db.prepare("INSERT INTO newsletters(name) VALUES('Old')").run();
+    expect(db.prepare("SELECT show_membership_line, invite_replies FROM newsletters").get()).toEqual({ show_membership_line: 1, invite_replies: 1 });
+  });
+
   it("migrations 5+6 carry the old Content look, header and footer onto existing newsletters", async () => {
     const { DatabaseSync } = await import("node:sqlite");
     const { migrate } = await import("../src/db/index.js");

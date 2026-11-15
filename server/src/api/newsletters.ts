@@ -25,6 +25,8 @@ const input = z.object({
   accentColor: z.string().regex(HEX_COLOR, "Use a hex color like #7c5cff").default(DEFAULT_LOOK.accentColor),
   headerTitle: z.string().trim().max(80).default(""),
   footerText: z.string().trim().max(500).default(""),
+  showMembershipLine: z.boolean().default(true),
+  inviteReplies: z.boolean().default(true),
   enabled: z.boolean().default(false),
 });
 
@@ -79,8 +81,8 @@ export function newslettersRouter(db: DB): Router {
             db
               .prepare(
                 `INSERT INTO newsletters(name, subject, template_id, schedule, history_days, send_as_bcc, all_recipients, enabled,
-                   email_theme, accent_color, header_title, footer_text)
-                 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+                   email_theme, accent_color, header_title, footer_text, show_membership_line, invite_replies)
+                 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
               )
               .get(
                 d.name,
@@ -95,6 +97,8 @@ export function newslettersRouter(db: DB): Router {
                 d.accentColor,
                 d.headerTitle,
                 d.footerText,
+                d.showMembershipLine ? 1 : 0,
+                d.inviteReplies ? 1 : 0,
               ) as {
               id: number;
             }
@@ -104,7 +108,7 @@ export function newslettersRouter(db: DB): Router {
         db.prepare(
           `UPDATE newsletters SET name = ?, subject = ?, template_id = ?, schedule = ?, history_days = ?, send_as_bcc = ?,
              all_recipients = ?, enabled = ?, email_theme = ?, accent_color = ?, header_title = ?, footer_text = ?,
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+             show_membership_line = ?, invite_replies = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
         ).run(
           d.name,
           d.subject,
@@ -118,6 +122,8 @@ export function newslettersRouter(db: DB): Router {
           d.accentColor,
           d.headerTitle,
           d.footerText,
+          d.showMembershipLine ? 1 : 0,
+          d.inviteReplies ? 1 : 0,
           nid,
         );
       }

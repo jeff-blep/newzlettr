@@ -25,6 +25,8 @@ export interface NewsletterRow {
   accent_color: string;
   header_title: string;
   footer_text: string;
+  show_membership_line?: number;
+  invite_replies?: number;
   created_at: string;
   updated_at: string;
 }
@@ -36,7 +38,14 @@ export function getNewsletterRow(db: DB, id: number): NewsletterRow | null {
 export function lookOf(row: NewsletterRow): Look {
   const emailTheme = (EMAIL_THEMES as readonly string[]).includes(row.email_theme) ? (row.email_theme as EmailTheme) : DEFAULT_LOOK.emailTheme;
   const accentColor = HEX_COLOR.test(row.accent_color) ? row.accent_color : DEFAULT_LOOK.accentColor;
-  return { emailTheme, accentColor, headerTitle: row.header_title ?? "", footerText: row.footer_text ?? "" };
+  return {
+    emailTheme,
+    accentColor,
+    headerTitle: row.header_title ?? "",
+    footerText: row.footer_text ?? "",
+    showMembershipLine: row.show_membership_line !== 0,
+    inviteReplies: row.invite_replies !== 0,
+  };
 }
 
 export function cronOf(row: NewsletterRow): string {
