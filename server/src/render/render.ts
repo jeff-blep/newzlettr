@@ -132,6 +132,8 @@ export async function renderNewsletter(db: DB, opts: RenderOptions): Promise<Ren
     subject: opts.subject ?? title,
     body,
     footer: look.footerText,
+    membershipLine: look.showMembershipLine ?? true,
+    inviteReplies: look.inviteReplies ?? true,
     mode: look.emailTheme,
     previewScheme: look.emailTheme === "auto" ? opts.previewScheme : undefined,
   });
@@ -182,6 +184,16 @@ async function loadHostPick(db: DB, warnings: string[]): Promise<HostPickData | 
   }
 }
 
+/** The built-in closing line; each half can be switched off per newsletter. */
+export function standardFooter(p: { title: string; membershipLine: boolean; inviteReplies: boolean }): string {
+  return [
+    p.membershipLine ? `You're receiving this because you're part of ${esc(p.title.replace(/ Newsletter$/, ""))}.` : "",
+    p.inviteReplies ? "Reply to this email to get in touch." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function dateRange(now: Date, days: number, timeZone: string): string {
   const start = new Date(now.getTime() - (days - 1) * 86400_000);
   const f = (d: Date, withYear: boolean) =>
@@ -196,6 +208,8 @@ function layout(p: {
   subject: string;
   body: string;
   footer: string;
+  membershipLine: boolean;
+  inviteReplies: boolean;
   mode: "dark" | "light" | "auto";
   /**
    * In-app preview of an "auto" email: the app UI is dark, so the preview frame would always
@@ -240,7 +254,7 @@ ${
     <tr><td class="nz-body" style="padding:0">${p.body}</td></tr>
     <tr><td style="padding:8px 8px 0 8px;font:400 12px/1.5 ${t.font};color:${t.faint};text-align:center">
       ${footer}
-      You're receiving this because you're part of ${esc(p.title.replace(/ Newsletter$/, ""))}. Reply to this email to get in touch.
+      ${standardFooter(p)}
     </td></tr>
   </table>
 </td></tr></table>

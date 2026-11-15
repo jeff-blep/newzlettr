@@ -316,6 +316,10 @@ export interface Newsletter {
   /** Empty = "<Plex server name> Newsletter". */
   headerTitle: string;
   footerText: string;
+  /** "You're receiving this because you're part of <server>." */
+  showMembershipLine: boolean;
+  /** "Reply to this email to get in touch." */
+  inviteReplies: boolean;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -338,6 +342,10 @@ export interface NewsletterInput {
   /** Empty = "<Plex server name> Newsletter". */
   headerTitle: string;
   footerText: string;
+  /** "You're receiving this because you're part of <server>." */
+  showMembershipLine: boolean;
+  /** "Reply to this email to get in touch." */
+  inviteReplies: boolean;
   enabled: boolean;
 }
 

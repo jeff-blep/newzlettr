@@ -84,11 +84,15 @@ export interface Look {
   /** Empty = "<Plex server name> Newsletter". */
   headerTitle: string;
   footerText: string;
+  /** "You're receiving this because you're part of <server>." */
+  showMembershipLine: boolean;
+  /** "Reply to this email to get in touch." - off for no-reply senders. */
+  inviteReplies: boolean;
 }
 /** History window used when nothing else says otherwise (new newsletters, previews, Stats page). */
 export const DEFAULT_HISTORY_DAYS = 7;
 
-export const DEFAULT_LOOK: Look = { emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "" };
+export const DEFAULT_LOOK: Look = { emailTheme: "dark", accentColor: "#7c5cff", headerTitle: "", footerText: "", showMembershipLine: true, inviteReplies: true };
 
 export const SECTIONS = {
   general: generalSchema,
