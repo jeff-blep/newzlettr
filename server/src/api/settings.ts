@@ -122,6 +122,11 @@ export function settingsRouter(db: DB): Router {
         return res.status(404).json({ error: "this section has no test" });
     }
     log.info({ section: s, ok: result.ok }, `connection test: ${result.message}`);
+    // A passing email test should clear a stale "email failed" health warning straight away.
+    if (s === "smtp" && result.ok) {
+      invalidateSmtpHealth();
+      refreshHealthInBackground(db);
+    }
     res.json(result);
   });
 
