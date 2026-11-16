@@ -62,6 +62,8 @@ export interface SmtpSettings {
   fromName: string;
   fromAddress: string;
   ignoreTlsErrors: boolean;
+  /** BCC sends: also deliver a copy to the sending address (shown as "To"). */
+  copyToSender: boolean;
 }
 
 export interface ImagesSettings {

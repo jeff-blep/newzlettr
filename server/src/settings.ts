@@ -37,6 +37,8 @@ export const smtpSchema = z.object({
   fromName: z.string().trim().default("Newzlettr"),
   fromAddress: z.string().trim().default(""),
   ignoreTlsErrors: z.boolean().default(false),
+  /** BCC sends show the sending address as "To"; false = don't actually deliver a copy there. */
+  copyToSender: z.boolean().default(true),
 });
 
 export const imagesSchema = z.object({

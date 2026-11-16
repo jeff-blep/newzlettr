@@ -125,6 +125,10 @@ search "*your provider* SMTP settings" if you're not sure:
 
 Use **Send Test Email** on the Email settings page to make sure it works.
 
+When a newsletter is sent as BCC, your sending address appears in the "To" line so nobody sees
+anyone else's address, and that mailbox gets its own copy. Sending from a no-reply address?
+Turn off **Copy to Sender** in Settings → Email and only your recipients get it.
+
 ### Notifications
 
 Newzlettr can send you a Telegram message about your newsletters. Turn on any mix of:

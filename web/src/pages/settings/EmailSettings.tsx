@@ -81,6 +81,12 @@ export function EmailSettings() {
         <FormRow label="From Address" help="Defaults to the username. Many providers only allow your own address here.">
           <TextInput value={d.fromAddress} onChange={(e) => smtp.set("fromAddress", e.currentTarget.value)} placeholder={d.username || "you@example.com"} maw={420} />
         </FormRow>
+        <FormRow
+          label="Copy to Sender"
+          help="When sending as BCC, the email shows your sending address in “To”. Turn this off so that address doesn't get its own copy (your Sent folder usually keeps one anyway)."
+        >
+          <Checkbox checked={d.copyToSender} onChange={(e) => smtp.set("copyToSender", e.currentTarget.checked)} />
+        </FormRow>
       </SettingsSection>
 
       <SettingsSection title="Test">

@@ -46,6 +46,8 @@ export async function sendMail(db: DB, mail: OutgoingMail): Promise<{ messageId:
       // BCC sends still need a visible To; use the sender so nobody sees the list.
       to: to.length ? to.join(", ") : fromHeader(smtp),
       bcc: bcc.length ? bcc.join(", ") : undefined,
+      // Header To stays the sender, but only the real recipients get it (no copy to the sender).
+      envelope: !to.length && !smtp.copyToSender ? { from: smtp.fromAddress || smtp.username, to: bcc } : undefined,
       subject,
       html: mail.html,
       text: mail.text,
