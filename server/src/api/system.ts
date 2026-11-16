@@ -47,7 +47,7 @@ export function systemRouter(db: DB): Router {
   });
 
   r.get("/health", (_req, res) => res.json(lastHealth()));
-  r.post("/health", async (_req, res) => res.json(await runHealthChecks(db)));
+  r.post("/health", async (_req, res) => res.json(await runHealthChecks(db, { force: true })));
 
   /* ---------------------------------- logs ---------------------------------- */
 

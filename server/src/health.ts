@@ -26,7 +26,27 @@ export function invalidateSmtpHealth(): void {
   smtpCache = null;
 }
 
-export async function runHealthChecks(db: DB): Promise<HealthResponse> {
+/** Network-level SMTP failures (as opposed to a rejected login) - usually a passing blip. */
+const TRANSIENT_SMTP = new Set(["ETIMEDOUT", "ECONNECTION", "ESOCKET", "ECONNRESET", "ECONNREFUSED", "EDNS", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
+export function isTransientSmtpError(e: unknown): boolean {
+  const code = (e as { code?: string })?.code ?? "";
+  return TRANSIENT_SMTP.has(code) || /timed? ?out|ETIMEDOUT|ECONNRESET/i.test((e as Error)?.message ?? "");
+}
+/** Pause before re-trying a transient SMTP failure (tests set this to 0). */
+export const smtpRetry = { delayMs: 5_000 };
+
+async function verifySmtp(smtp: Parameters<typeof createTransport>[0]): Promise<void> {
+  const t = createTransport(smtp);
+  try {
+    await t.verify();
+  } finally {
+    t.close();
+  }
+}
+
+/** `force` (System > Status "Check now") re-tests email instead of using the remembered result. */
+export async function runHealthChecks(db: DB, opts: { force?: boolean } = {}): Promise<HealthResponse> {
+  if (opts.force) invalidateSmtpHealth();
   const checks: HealthCheck[] = [];
   const conn = "/settings/connections";
 
@@ -56,18 +76,34 @@ export async function runHealthChecks(db: DB): Promise<HealthResponse> {
   } else {
     const key = `${smtp.host}:${smtp.port}:${smtp.username}:${smtp.encryption}:${smtp.password.length}`;
     if (!smtpCache || smtpCache.key !== key || Date.now() - smtpCache.at > SMTP_TTL) {
-      const t = createTransport(smtp);
       let check: HealthCheck | null = null;
+      let transient = false;
       try {
-        await t.verify();
-      } catch (e) {
-        check = { source: "smtp", level: "error", message: `Email login failed: ${describeSmtpError(e, smtp)}`, fixPath: "/settings/email" };
-      } finally {
-        t.close();
+        await verifySmtp(smtp);
+      } catch (first) {
+        let e = first;
+        if (isTransientSmtpError(first)) {
+          // One blip (a brief internet drop) shouldn't raise an alarm: try once more.
+          await new Promise((r) => setTimeout(r, smtpRetry.delayMs));
+          try {
+            await verifySmtp(smtp);
+            e = null;
+          } catch (second) {
+            e = second;
+          }
+        }
+        if (e) {
+          transient = isTransientSmtpError(e);
+          check = transient
+            ? { source: "smtp", level: "error", message: `Can't reach the email server: ${describeSmtpError(e, smtp)}`, fixPath: "/settings/email" }
+            : { source: "smtp", level: "error", message: `Email login failed: ${describeSmtpError(e, smtp)}`, fixPath: "/settings/email" };
+        }
       }
-      smtpCache = { key, at: Date.now(), check };
-    }
-    if (smtpCache.check) checks.push(smtpCache.check);
+      // Connection problems are re-checked every run (they clear on their own); a good result
+      // or a rejected login is remembered so we don't log in to the provider every 15 minutes.
+      smtpCache = transient ? null : { key, at: Date.now(), check };
+      if (check) checks.push(check);
+    } else if (smtpCache.check) checks.push(smtpCache.check);
   }
 
   const images = getSection(db, "images");
